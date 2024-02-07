@@ -1168,8 +1168,17 @@ plot7 <- pheatmap(t(rabuplot_df_genus),
 ## Transcriptomics
 Import data
 ```{r}
-host_gut_rawCounts_total1 <- read.table("/Users/shashankgupta/Desktop/ImprovAFish/host_data/host_gut_count.txt")
-sample_info <- read.csv("/Users/shashankgupta/Desktop/ImprovAFish/ImprovAFish/sample_info.csv", row.names = 1)
+# Replace this base URL with the raw content URL of your GitHub repository
+base_url <- "https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/"
+
+# Specify the paths to your files on GitHub
+host_gut_rawCounts_url <- paste0(base_url, "Transcriptomics/host_gut_count.txt")
+sample_info_url <- paste0(base_url, "Transcriptomics/sample_info.csv")
+
+# Read the files
+host_gut_rawCounts_total1 <- read.table(url(host_gut_rawCounts_url))
+sample_info <- read.csv(url(sample_info_url), row.names = 1)
+
 omics_data_host <- host_gut_rawCounts_total1
 host_gut_mapping_file <- sample_info
 ```
@@ -1264,8 +1273,13 @@ permanova_result
 ## Metatranscriptomics
 Import data and intial preprocessing
 ```{r, warning=FALSE}
-# Load metatranscriptomics data
-dds_metatranscriptomics <- readRDS("/Users/shashankgupta/Desktop/ImprovAFish/github/ImprovaFish/MetaTranscriptomics/dds_metatranscriptomics.rds")
+# Specify the path to your RDS file on GitHub
+rds_file <- "Metatranscriptomics/dds_metatranscriptomics.rds"
+rds_url <- paste0("https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/", rds_file)
+
+# Read the RDS file
+dds_metatranscriptomics <- readRDS(url(rds_url))
+
 
 # Filter out T0 time point
 dds_metatranscriptomics <- dds_metatranscriptomics[ , dds_metatranscriptomics$TimePoint != "T0"]
