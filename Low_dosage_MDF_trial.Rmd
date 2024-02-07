@@ -1,0 +1,1517 @@
+---
+title: "Low_dosage_MDF_trial"
+author: "Shashank Gupta"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+---
+
+```{r, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+Load all the packages used in the analysis
+```{r message=FALSE, warning=FALSE}
+library("ranacapa")
+library("phyloseq")
+library("ggplot2")
+library("stringr")
+library("plyr")
+library("reshape2")
+library("reshape")
+library("dplyr")
+library("tidyr")
+library("doBy")
+library("plyr")
+library("microbiome")
+library("ggpubr")
+library("vegan")
+library("tidyverse")
+library("magrittr")
+library("cowplot")
+library("dendextend")
+library("WGCNA")
+library("metagenomeSeq")
+library("decontam")
+library("RColorBrewer")
+library("ampvis2")
+library("ggpubr")
+library("formatR")
+library("DT")
+library("taxcleanr") #devtools::install_github("shashank-KU/taxcleanr")
+library("pheatmap")
+library("DESeq2")
+library("microbiomeMarker")
+
+```
+
+# The overview of the multi-omics
+![](/Users/shashankgupta/Desktop/ImprovAFish/Final_Figures/Trial.png)
+
+# Low inclusion of beta-mannnan trial
+## Phenotypic scoring
+```{r}
+annotation_colors <- list(
+  Timepoint = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
+  Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
+
+fish_data <- read.csv("/Users/shashankgupta/Desktop/ImprovAFish/FInal_Figures/Metrics.csv", row.names = 1)
+
+
+fish_data$Diet <- factor(fish_data$Diet, levels=c('start', 'CTR', 'MC1', 'MC2', 'MN3'))
+
+plot2 <- ggboxplot(fish_data, x = "Diet", y = "BW",
+          color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
+  #stat_compare_means(comparisons = my_comparisons, hide.ns = F) +
+  #stat_compare_means() +
+  ggplot2::geom_jitter(
+    mapping = aes_string(fill="Diet"),
+    position = ggplot2::position_jitter(seed=123), 
+    shape = 21,
+    color = "black",
+    size = 2,
+    alpha = 0.8
+  ) +
+  theme_bw() +  ylab("Body weigth") +
+  theme(legend.position="none",axis.title.x=element_blank()) +
+  scale_fill_manual(values =  annotation_colors$Diet) + 
+  scale_colour_manual( values = annotation_colors$Diet) +
+ facet_grid(. ~ Timepoint, scales="free_x", space = "free_x") 
+```
+
+```{r, warning=FALSE}
+# fish_data %>%
+#     complete(Timepoint, Diet, fill = list(BW = NA, Length = NA)) %>%
+#     group_by(Timepoint, Diet) %>%
+#     summarise(across(c(Heart_Score, Fat_Score,cataract_V,cataract_H  ), mean, na.rm = TRUE), .groups = 'drop') %>%
+#     mutate(across(where(is.numeric), round, 2)) %>%
+#     DT::datatable()
+
+library(dplyr)
+library(tidyr)
+
+fish_data %>%
+  complete(Timepoint, Diet, fill = list(BW = NA, Length = NA, GW = NA, CF = NA, HSI = NA, CSI = NA)) %>%
+  group_by(Timepoint, Diet) %>%
+  summarise(
+    Mean_BW = mean(BW, na.rm = TRUE),
+    Mean_Length = mean(Length, na.rm = TRUE),
+    Mean_GW = mean(GW, na.rm = TRUE),
+    Mean_CF = mean(CF, na.rm = TRUE),
+    Mean_HSI = mean(HSI, na.rm = TRUE),
+    Mean_CSI = mean(CSI, na.rm = TRUE),
+    Mean_Heart_W = mean(Heart_W, na.rm = TRUE),
+    Mean_Liver_W = mean(Liver_W, na.rm = TRUE),
+    SEM_BW = sd(BW, na.rm = TRUE) / sqrt(sum(!is.na(BW))),
+    SEM_Length = sd(Length, na.rm = TRUE) / sqrt(sum(!is.na(Length))),
+    SEM_GW = sd(GW, na.rm = TRUE) / sqrt(sum(!is.na(GW))),
+    SEM_CF = sd(CF, na.rm = TRUE) / sqrt(sum(!is.na(CF))),
+    SEM_HSI = sd(HSI, na.rm = TRUE) / sqrt(sum(!is.na(HSI))),
+    SEM_CSI = sd(CSI, na.rm = TRUE) / sqrt(sum(!is.na(CSI))),
+    SEM_Heart_W = sd(Heart_W, na.rm = TRUE) / sqrt(sum(!is.na(Heart_W))),
+    SEM_Liver_W = sd(Liver_W, na.rm = TRUE) / sqrt(sum(!is.na(Liver_W))),
+
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    across(where(is.numeric), ~round(., 2)),
+    across(starts_with("Mean_"), ~paste(., "±", get(paste0("SEM_", sub("Mean_", "", cur_column())))))
+  ) %>%
+  filter(complete.cases(.)) %>%
+  select(Timepoint, Diet, starts_with("Mean_"), -starts_with("SEM_")) %>%
+  rename_with(~sub("Mean_", "", .), starts_with("Mean_")) %>% 
+  t() %>%
+  DT::datatable() 
+
+
+
+```
+
+
+
+## Metagenomics
+Import data and clean the taxonomy
+```{r, warning=FALSE, message=FALSE}
+setwd("/Users/shashankgupta/Desktop/ImprovAFish/github/ImprovaFish/Metagenomics")
+raw <- import_biom("/Users/shashankgupta/Desktop/ImprovAFish/exported-feature-table/feature-table_taxonomy.biom")
+tree <- read_tree("/Users/shashankgupta/Desktop/ImprovAFish/exported-feature-table/tree.nwk")
+refseq <- Biostrings::readDNAStringSet("/Users/shashankgupta/Desktop/ImprovAFish/exported-feature-table/dna-sequences.fasta", use.names = TRUE)
+dat <- read.table("/Users/shashankgupta/Desktop/ImprovAFish/metadata.txt", header = TRUE,row.names = 1, sep = "\t")
+# Merge into one complete phyloseq object
+all <- merge_phyloseq(raw, sample_data(dat), tree, refseq)
+tax <- data.frame(tax_table(all), stringsAsFactors = FALSE)
+tax <- tax[,1:7] # No info in col 8-15
+# Set informative colnames
+colnames(tax) <- c("Kingdom", "Phylum","Class","Order","Family","Genus", "Species")
+tax.clean <- data.frame(row.names = row.names(tax),
+                        Kingdom = str_replace(tax[,1], "d__",""), 
+                        Phylum = str_replace(tax[,2], "p__",""),
+                        Class = str_replace(tax[,3], "c__",""),
+                        Order = str_replace(tax[,4], "o__",""),
+                        Family = str_replace(tax[,5], "f__",""),
+                        Genus = str_replace(tax[,6], "g__",""),
+                        Species = str_replace(tax[,7], "s__",""), 
+                        stringsAsFactors = FALSE)
+tax.clean[is.na(tax.clean)] <- ""
+# - Clean rank by rank
+# Kingdom - Remove the unassigned completely
+# Phylum
+# Class
+# Remove extra info about origin from some bacteria
+# Remove all fields that contain "uncultured", "Unknown" or "Ambigious"
+bad <- c("Ambiguous_taxa","uncultured", "Subgroup_21")
+tax.clean[tax.clean$Class %in% bad,3:7] <- ""
+
+# Order
+bad <- c("0319-6G20","1-20","11-24", "ADurb.Bin180","D8A-2", "Group_1.1c", "JGI_0000069-P22","Marine_Group_II",
+         "Pla3_lineage","Run-SP154",
+         "Ambiguous_taxa", "uncultured", "UBA10353_marine_group",
+         "Subgroup_17", "SAR86_clade", "SAR11_clade", "SAR202_clade")
+tax.clean[tax.clean$Order %in% bad,4:7] <- ""
+
+# Family
+bad <- c("Ambiguous_taxa","11-24","67-14", "uncultured", "SAR116_clade", "Run-SP154", 
+         "Marine_Group_II", "env.OPS_17", "SAR116_clade", "S085", "S-70", "NS9_marine_group", "Mitochondria")
+tax.clean[tax.clean$Family %in% bad,5:7] <- ""
+
+# Genus
+bad <- c("Ambiguous_taxa","Unknown_Family","uncultured","Subgroup_10", "1174-901-12", "67-14")
+tax.clean[tax.clean$Genus %in% bad,6:7] <- ""
+
+# Species
+bad <- c("Ambiguous_taxa","marine_metagenome","low_GC","wastewater_metagenome","unidentified", 
+         "uncultured_synthetic", "uncultured_organism")
+tax.clean[tax.clean$Species %in% bad,6:7] <- ""
+
+#tax.clean[grepl("uncultured", tax.clean$Species),"Species"] <- ""
+#tax.clean[grepl("unidentified", tax.clean$Species),"Species"] <- ""
+
+# Remove remove ".", change "-" and " " to "_"
+for (i in 1:ncol(tax.clean)){
+  tax.clean[,i] <- str_replace_all(tax.clean[,i], "[.]","")
+  tax.clean[,i] <- str_replace_all(tax.clean[,i], "[(]","")
+  tax.clean[,i] <- str_replace_all(tax.clean[,i], "[)]","")
+  tax.clean[,i] <- str_replace_all(tax.clean[,i], "-","_")
+  tax.clean[,i] <- str_replace_all(tax.clean[,i], " ","_")
+}
+
+for (i in 1:7){ tax.clean[,i] <- as.character(tax.clean[,i])}
+# File holes in the tax table
+for (i in 1:nrow(tax.clean)){
+  #  Fill in missing taxonomy
+  if (tax.clean[i,2] == ""){
+    kingdom <- paste("Kingdom_", tax.clean[i,1], sep = "")
+    tax.clean[i, 2:7] <- kingdom
+  } else if (tax.clean[i,3] == ""){
+    phylum <- paste("Phylum_", tax.clean[i,2], sep = "")
+    tax.clean[i, 3:7] <- phylum
+  } else if (tax.clean[i,4] == ""){
+    class <- paste("Class_", tax.clean[i,3], sep = "")
+    tax.clean[i, 4:7] <- class
+  } else if (tax.clean[i,5] == ""){
+    order <- paste("Order_", tax.clean[i,4], sep = "")
+    tax.clean[i, 5:7] <- order
+  } else if (tax.clean[i,6] == ""){
+    family <- paste("Family_", tax.clean[i,5], sep = "")
+    tax.clean[i, 6:7] <- family
+  } else if (tax.clean[i,7] == ""){
+    tax.clean$Species[i] <- paste("Genus_",tax.clean$Genus[i], sep = "_")
+  }
+}
+
+rm(bad, class, family, i, kingdom,new,order,phylum,uncul)
+
+tax_table(all) <- as.matrix(tax.clean)
+all
+
+
+all.clean <- subset_taxa(all,
+  Kingdom != "Unassigned" &
+  Kingdom != "Archaea" &
+  Kingdom != "Eukaryota" &
+  Family != "Mitochondria" &
+  Order != "Chloroplast" &
+  Genus != "Ralstonia"
+) %>%
+prune_taxa(taxa_sums(.) > 0, .)
+all.clean
+```
+
+Rarefaction plot
+```{r eecho=T, results='hide'}
+sample_data(all.clean)$New_Diet <- factor(sample_data(all.clean)$New_Diet, levels=c('ext-ctrl', 'CTR', 'MC1', 'MC2', 'MN3'))
+
+annotation_colors <- list(
+  samplingTime = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
+  New_Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
+
+p <- ggrare(all.clean, step = 1000, 
+            color = "samplingTime", 
+            se = F,
+            parallel = TRUE,
+            plot = FALSE)
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+
+p <- p + theme_bw() + 
+  scale_fill_manual(values =annotation_colors$samplingTime) +
+  scale_colour_manual( values = annotation_colors$samplingTime) +
+  facet_wrap(~New_Diet) +
+    guides(color = guide_legend(title = "Life stage"))
+
+```
+
+Alpha and Beta diversity
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=14, fig.height=10}
+shannon.div <- estimate_richness(all.clean, measures = c("Shannon", "Observed"))
+sampledata1<- data.frame(sample_data(all.clean))
+row.names(shannon.div) <- gsub("[.]","-", row.names(shannon.div))
+sampleData <- merge(sampledata1, shannon.div, by = 0 , all = TRUE)
+
+my_comparisons <- list( c("ext-ctrl", "MC1"), c("ext-ctrl", "MC2"), c("ext-ctrl", "MN3"), c("CTR", "MC1"), c("CTR", "MC2"), c("CTR", "MN3"))
+
+
+p1 <- ggboxplot(sampleData, x = "New_Diet", y = "Observed",
+          color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
+  stat_compare_means(comparisons = my_comparisons) +
+  stat_compare_means(label.y = 350) +
+  ggplot2::geom_jitter(
+    mapping = aes_string(fill="New_Diet"),
+    position = ggplot2::position_jitter(seed=123), 
+    shape = 21,
+    color = "black",
+    size = 2,
+    alpha = 0.8
+  ) +
+  theme_bw() +  
+  theme(legend.position="none",axis.title.x=element_blank()) +
+  scale_fill_manual(values =  annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet)   + 
+  labs(y= "Observed richness (ASVs)") 
+
+set.seed(1)
+PCoA_bray <- ordinate(physeq = all.clean, method = "PCoA", distance = "bray")
+PCoA_bray_plot<- plot_ordination(
+  physeq = all.clean, 
+  ordination = PCoA_bray, 
+  color = "New_Diet"
+) + 
+  geom_point(aes(fill ="New_Diet" ),  size =2) + 
+  geom_point(shape = 1, size = 2,colour = "black") +
+  theme_bw() + 
+  xlab("PCoA 1 [18.2 %]") + ylab("PCoA 2 [8.6 %]") + 
+  stat_ellipse() + 
+  scale_fill_manual(values =  annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet) +
+  guides(color = guide_legend(title = "Diet")) 
+
+
+
+bottom_row <- plot_grid(p1, PCoA_bray_plot, labels = c('B', 'C'), align = 'h', rel_widths = c(1, 1.3))
+```
+
+Supplementary Fig. S4
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=14, fig.height=10}
+plot_grid(p, bottom_row, labels = c('A', ''), ncol = 1, rel_heights = c(1, 1.2))
+```
+
+
+Computes the Bray-Curtis distance between all the samples in the dataset "all.clean" and tests for differences between samples in the variable "New_Diet" using the Adonis2 function. The Adonis2 function was run with 9999 permutations.
+```{r}
+sampledf <- data.frame(sample_data(all.clean))
+bcdist <- phyloseq::distance(all.clean, method="bray",normalized=TRUE) 
+adonis2(bcdist ~ New_Diet, 
+        data = sampledf, permutations = 9999)
+
+```
+
+Contamination removal
+```{r, message=FALSE}
+df <- as.data.frame(sample_data(all.clean)) # Put sample_data into a ggplot-friendly data.frame
+df$Sample_or_Control <- ifelse( df$New_Diet  %in% c("ext-ctrl"), "Control_Sample", "True_Sample")
+sample_data(all.clean) <- df
+df$LibrarySize <- sample_sums(all.clean)
+df <- df[order(df$LibrarySize),]
+df$Index <- seq(nrow(df))
+sample_data(all.clean)$is.neg <- sample_data(all.clean)$Sample_or_Control == "Control_Sample"
+contamdf.prev05 <- isContaminant(all.clean, method="prevalence", neg="is.neg", threshold=0.5)
+paste("The number of contamination found is",table(contamdf.prev05$contaminant)[2])
+all.noncontam <- prune_taxa(!contamdf.prev05$contaminant, all.clean)
+
+psdata <- subset_samples(all.noncontam, Sample_or_Control=="True_Sample")
+psdata <- prune_taxa(taxa_sums(psdata) > 0, psdata)
+psdata
+```
+
+Inspect the number of reads per sample and compare to rarefaction curves
+```{r}
+psdata.p <- prune_taxa(taxa_sums(psdata) >0, psdata)
+psdata.p
+```
+
+
+Taxonomic classification- Phylum level taxonomic distribution. Bars report the mean abundance for each individual sample. 
+```{r warning=FALSE, message=FALSE, fig.align='center'}
+psdata.r<- transform_sample_counts(psdata.p, function(x) x / sum(x) )
+Final.RNA <- aggregate_rare(psdata.r, level = "Phylum", detection = 1/100, prevalence = 20/100)
+getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
+PhylaPalette = getPalette(10)
+
+Final.RNA_phylum_plot<- plot_composition(Final.RNA, sample.sort = "Proteobacteria",otu.sort = "abundance", verbose = TRUE)
+Final.RNA_phylum_plot <- Final.RNA_phylum_plot + 
+  theme_bw() + 
+  theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = PhylaPalette)
+Final.RNA_phylum_plot
+```
+
+```{r, message=FALSE}
+#Bacterial Community Composition for Manuscript
+Final.seq.melt.RNA <- psmelt(tax_glom(psdata.r, "Species"))
+tax_ranks <- c("Phylum", "Class", "Order", "Family", "Genus", "Species")
+
+for (rank in tax_ranks) {
+  n_unique <- length(unique(Final.seq.melt.RNA[[rank]]))
+  message(paste(rank, ": ", n_unique, sep = ""))
+}
+```
+
+```{r}
+paste("number of unique Phylum is", table(grepl("Kingdom", unique(Final.seq.melt.RNA$Phylum)))[1])
+paste("number of unique Class is", table(grepl("Kingdom|Phylum", unique(Final.seq.melt.RNA$Class)))[1])
+paste("number of unique Order is", table(grepl("Kingdom|Class|Phylum", unique(Final.seq.melt.RNA$Order)))[1])
+paste("number of unique Family is", table(grepl("Kingdom|Order|Class|Phylum", unique(Final.seq.melt.RNA$Family)))[1])
+paste("number of unique Genus is", table(grepl("Kingdom|Family|Order|Class|Phylum", unique(Final.seq.melt.RNA$Genus)))[1])
+paste("number of unique Species is", table(grepl("Kingdom|Family|Order|Class|Phylum|Genus", unique(Final.seq.melt.RNA$Species)))[1])
+```
+
+```{r, echo=FALSE}
+aggregate_top_taxa <- function (x, top, level) {
+
+        .Deprecated("aggregate_rare",
+        "The microbiome::aggregate_top_taxa function is deprecated.")
+
+        x <- aggregate_taxa(x, level)
+
+        tops <- top_taxa(x, top)
+        tax <- tax_table(x)
+
+        inds <- which(!rownames(tax) %in% tops)
+
+        tax[inds, level] <- "Other"
+
+        tax_table(x) <- tax
+
+        tt <- tax_table(x)[, level]
+        tax_table(x) <- tax_table(tt)
+
+        aggregate_taxa(x, level)
+
+}
+```
+
+Supplementary table for the manuscript
+```{r, message=FALSE, warning=FALSE}
+Phylum_df <- summaryBy(Abundance~Phylum, data=Final.seq.melt.RNA, FUN=sum)
+Phylum_df$Percent <- round(Phylum_df$Abundance.sum/sum(Phylum_df$Abundance.sum)*100, 4)
+Phylum_df <- plyr::arrange(Phylum_df, plyr::desc(Percent))
+Phylum_df$PercentageRound <- round(Phylum_df$Percent, digits = 2)
+DT::datatable(Phylum_df)
+
+class_df <- summaryBy(Abundance~Class, data=Final.seq.melt.RNA, FUN=sum)
+class_df$Percent <- round(class_df$Abundance.sum/sum(class_df$Abundance.sum)*100, 4)
+class_df <- plyr::arrange(class_df, plyr::desc(Percent))
+class_df$PercentageRound <- round(class_df$Percent, digits = 2)
+DT::datatable(class_df)
+
+
+order_df <- summaryBy(Abundance~Order, data=Final.seq.melt.RNA, FUN=sum)
+order_df$Percent <- round(order_df$Abundance.sum/sum(order_df$Abundance.sum)*100, 4)
+order_df <- plyr::arrange(order_df, plyr::desc(Percent))
+order_df$PercentageRound <- round(order_df$Percent, digits = 2)
+DT::datatable(order_df)
+
+
+family_df <- summaryBy(Abundance~Family, data=Final.seq.melt.RNA, FUN=sum)
+family_df$Percent <- round(family_df$Abundance.sum/sum(family_df$Abundance.sum)*100, 4)
+family_df <- plyr::arrange(family_df, plyr::desc(Percent))
+family_df$PercentageRound <- round(family_df$Percent, digits = 2)
+DT::datatable(family_df)
+
+
+
+genus_df <- summaryBy(Abundance~Genus, data=Final.seq.melt.RNA, FUN=sum)
+genus_df$Percent <- round(genus_df$Abundance.sum/sum(genus_df$Abundance.sum)*100, 4)
+genus_df <- plyr::arrange(genus_df, plyr::desc(Percent))
+genus_df$Round <- round(genus_df$Percent, digits = 2)
+DT::datatable(genus_df)
+```
+
+Supplementary Figure
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=12, fig.width=12}
+FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
+FigureS4_1 <- aggregate_top_taxa(FigureS4_1, level = "Phylum", top = 10)
+getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
+PhylaPalette = getPalette(10)
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+
+FigureS4_1_plot<- plot_composition(FigureS4_1, sample.sort = "Proteobacteria",otu.sort = "abundance", verbose = TRUE)
+FigureS4_1_plot <- FigureS4_1_plot + 
+  theme_bw() + 
+  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa")
+
+
+FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
+
+FigureS4_2 <- aggregate_top_taxa(FigureS4_1, level = "Class",  top = 10)
+getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
+PhylaPalette = getPalette(10)
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+
+FigureS4_2_plot<- plot_composition(FigureS4_2, sample.sort = "Gammaproteobacteria",otu.sort = "abundance", verbose = TRUE)
+FigureS4_2_plot <- FigureS4_2_plot + 
+  theme_bw() + 
+  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa")
+
+
+FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
+
+FigureS4_3 <- aggregate_top_taxa(FigureS4_1, level = "Family", top = 10)
+getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
+PhylaPalette = getPalette(10)
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+
+FigureS4_3_plot<- plot_composition(FigureS4_3, sample.sort = "Other",otu.sort = "abundance", verbose = TRUE)
+FigureS4_3_plot <- FigureS4_3_plot + 
+  theme_bw() + 
+  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylab("Relative abundance")+ labs(fill = "Taxa")
+
+
+
+FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
+
+FigureS4_4 <- aggregate_top_taxa(FigureS4_1, level = "Genus", top = 10)
+getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
+PhylaPalette = getPalette(10)
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+
+FigureS4_4_plot<- plot_composition(FigureS4_4, sample.sort = "Other",otu.sort = "abundance", verbose = TRUE)
+FigureS4_4_plot <- FigureS4_4_plot + 
+  theme_bw() + 
+  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa")
+
+
+plot_grid(FigureS4_1_plot, FigureS4_3_plot, FigureS4_2_plot, FigureS4_4_plot, labels = 'AUTO', ncol = 2, rel_widths = c(1,1.1,1,1.1))
+
+```
+
+Alpha and Beta diversity
+```{r, message=FALSE, warning=FALSE}
+shannon.div <- estimate_richness(psdata.p, measures = c("Shannon", "Observed"))
+sampledata1<- data.frame(sample_data(psdata.p))
+row.names(shannon.div) <- gsub("[.]","-", row.names(shannon.div))
+sampleData <- merge(sampledata1, shannon.div, by = 0 , all = TRUE)
+sampleData <- sampleData %>%
+  mutate(New_Diet = case_when(
+    samplingTime == "T0" ~ "start",
+    TRUE ~ New_Diet
+  ))
+sampleData$New_Diet <- factor(sampleData$New_Diet, levels=c( 'CTR', 'MC1', 'MC2', 'MN3'))
+sampleData$samplingTime <- factor(sampleData$samplingTime, levels=c('T0', 'T1', 'T2', 'T3'))
+
+my_comparisons <- list( c("CTR", "MC1"), c("CTR", "MC2"), c("CTR", "MN3"), 
+                        c("MC1", "MC2"), c("MC1", "MN3"), c("MC2", "MN3") )
+
+
+plot1 <- ggboxplot(sampleData, x = "New_Diet", y = "Shannon",
+          color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
+  geom_pwc(comparisons = my_comparisons, hide.ns = TRUE) +
+  #stat_compare_means(label.y = 5) +
+  ggplot2::geom_jitter(
+    mapping = aes_string(fill="New_Diet"),
+    position = ggplot2::position_jitter(seed=123), 
+    shape = 21,
+    color = "black",
+    size = 2,
+    alpha = 0.8
+  ) +
+  theme_bw() +  scale_y_continuous("Shannon index") +
+  theme(legend.position="none",axis.title.x=element_blank()) +
+  scale_fill_manual(values =  annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet) +
+ facet_grid(. ~ samplingTime, scales="free_x", space = "free_x") 
+
+my_comparisons <- list(c("T0", "T3"), c("T1", "T3"), c("T2", "T3"))
+
+# Assuming your dataframe is named sampleData
+sampleData$New_Diet[sampleData$New_Diet == "start"] <- "CTR"
+
+
+
+plot2_x <- ggboxplot(sampleData, x = "samplingTime", y = "Shannon",
+          color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
+    stat_compare_means(comparisons = my_comparisons) +
+    #stat_compare_means(label.y = 5) +
+    ggplot2::geom_jitter(
+        mapping = aes_string(fill="samplingTime"),
+        position = ggplot2::position_jitter(seed=123), 
+        shape = 21,
+        color = "black",
+        size = 2,
+        alpha = 0.8
+    ) +
+    theme_bw() +  
+    theme(legend.position="none",axis.title.x=element_blank()) +
+    scale_fill_manual(values =  annotation_colors$samplingTime) + 
+    scale_colour_manual( values = annotation_colors$samplingTime) +
+    facet_grid(. ~ New_Diet) + 
+    labs(y= "Shannon index") + ylim(c(1.5, 5.2))
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=14, fig.height=10}
+set.seed(1)
+PCoA_bray <- ordinate(physeq = psdata.p, method = "PCoA", distance = "bray")
+plot3 <- plot_ordination(
+  physeq = psdata.p, 
+  ordination = PCoA_bray, 
+  color = "samplingTime"
+) + 
+  geom_point(aes(fill ="samplingTime" ),  size =2) + 
+  geom_point(shape = 1, size = 2,colour = "black") +
+  theme_bw() + ggtitle("PCoA Plot - Bray") + 
+      theme(plot.title = element_text(hjust = 0.5))  + 
+ ggtitle("Hindgut: Microbiome") +
+  xlab("PCoA 1 [21.1 %]") + ylab("PCoA 2 [7.7 %]") + 
+  stat_ellipse() + 
+  scale_fill_manual(values =  annotation_colors$samplingTime) + 
+  scale_colour_manual( values = annotation_colors$samplingTime) +
+  guides(color = guide_legend(title = "Time")) 
+
+# Run adonis test
+sampledf <- data.frame(sample_data(psdata.p))
+bcdist <- phyloseq::distance(psdata.p, method="bray",normalized=TRUE) 
+adonis2(bcdist ~ samplingTime, data = sampledf, permutations = 9999)
+
+
+set.seed(1)
+plot4 <- plot_ordination(
+  physeq = psdata.p, 
+  ordination = PCoA_bray, 
+  color = "New_Diet"
+) + 
+  geom_point(aes(fill ="New_Diet" ),  size =2) + 
+  geom_point(shape = 1, size = 2,colour = "black") +
+  theme_bw() + ggtitle("PCoA Plot - Bray") + 
+      theme(plot.title = element_text(hjust = 0.5))  + 
+ ggtitle("Hindgut: Microbiome") +
+  xlab("PCoA 1 [21.1 %]") + ylab("PCoA 2 [7.7 %]") + 
+  stat_ellipse() + 
+  scale_fill_manual(values =  annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet) +
+  guides(color = guide_legend(title = "Diet")) 
+
+# Run adonis test
+sampledf <- data.frame(sample_data(psdata.p))
+adonis2(bcdist ~ New_Diet, data = sampledf, permutations = 9999)
+
+
+# plot5 <- plot_grid(plot1, plot2, labels = c('', ''), label_size = 12, ncol = 1, align = "hv")
+# plot6 <- plot_grid(plot3, plot4, labels = c('', ''), label_size = 12, ncol = 1, align = "hv")
+# plot_grid(plot5, plot6, ncol = 2, rel_widths = c(1.5, 1))
+```
+
+```{r, echo=FALSE }
+#' Relative Abundance Plot
+#'
+#' For creating nice microbiome plots
+#'
+#' @param phylo_ob Phyloseq object with metadata in sample_data.
+#' @param predictor Predictor of interest for statistics/plotting in sample_data.
+#' @param type Taxonomic rank from tax_table, case insensitive; default is "genus".
+#' @param relative_abun Use relative abundances, else absolute; default is TRUE.
+#' @param id Define id variable for mixed models.
+#' @param xlabs X-axis label
+#' @param ylabs Y-axis label
+#' @param main Title of plot
+#' @param violin Use geom_violin for plotting, else boxplot; default is TRUE.
+#' @param violin_scale Scale option for geom_violin; default is "width".
+#' @param legend_title Legend title; default is name of predictor.
+#' @param N_taxa Number of taxa to be plotted; default is 15.
+#' @param By_median Order plot by median abundances, else mean abundances; default is TRUE.
+#' @param no_other_type Taxa in lower abundances than top N_taxa, are grouped as "other", this will remove this group from the plot; default is FALSE.
+#' @param legend_names Define variable names for legend text.
+#' @param Time Time variable name for longitudinal datasets.
+#' @param Timepoint Value in variable @Time to select.
+#' @param Strata Name of variable for stratification;
+#' @param Strata_val Value in variable @Strata to keep; default is 1.
+#' @param no_legends Removes legend; default is FALSE.
+#' @param no_names Removes taxa names; default is FALSE.
+#' @param italic_names Taxa names will be in italic e.g. usable for family, genus, species levels; default is TRUE
+#' @param Only_sig Only keep significant taxa; default is FALSE.
+#' @param log Present plot on a log scale; default is TRUE.
+#' @param log_max Maximum value of log-axis options:1, 10, 100; default is 100.
+#' @param stat_out Outputs a data.frame with statistics to Global environment; default is FALSE.
+#' @param p_val Displays p-values on plot; default is TRUE.
+#' @param p_stars Shows stars instead of p-values; default is FALSE.
+#' @param stats Select type of statistical test; options: "non-parametric", "parametric", "mixed", "mgs_feature"; default is "non-parametric".
+#' @param p_adjust adjust p-values; default is "FALSE.
+#' @param p_adjust_method options: "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr"; default is "fdr".
+#' @param p_adjust_full correction applied for all taxa in the dataset; default is FALSE.
+#' @param colors define list of colors for plot. If not color brewer will be used; default is NULL.
+#' @param color_by define taxonomic rank to color by; default is NULL.
+#' @param order Order by abundance, else alphabetically; default is TRUE.
+#' @param reverse Flip taxa order; default is FALSE.
+#' @param list_taxa A list of specific taxa names to be analyzed; default is NULL.
+#' @param select_taxa Choose all taxa from one or more taxonomic variables, eg. "Staphylococcus" or "Staph" or "coccus" or c("staph",bifido"); default is NULL.
+#' @param select_type Taxonomic rank of the @select_taxa; default is "genus".
+#' @param bar_chart Choose to make bar chart; default is FALSE.
+#' @param bar_chart_stacked Produce stacked bar chart; default is FALSE
+#' @param percent Print percentages on bar chart; default is FALSE.
+#' @param facet_wrap Facet wrap chart by variable; eg. Time; default is NULL.
+#' @param facet_label Facet wrap labels; default is NULL.
+#' @param facet_n Show n for each facet; default is TRUE.
+#' @param order_by Choose variable to order the selected taxa by; eg. Time; default is Time.
+#' @param order_val Choose value for @order_by; default is NULL.
+#' @param text_angle_x Choose value for rotation of axis-text; default is 0.
+#'
+#' @import ggplot2 phyloseq metagenomeSeq dplyr tidyr RColorBrewer lmerTest
+#' @return A ggplot
+#' @export
+
+rabutable <- function(phylo_ob,
+                     predictor="none",
+                     type="genus",
+                     relative_abun=TRUE,
+                     id=NULL,
+                     xlabs = "Relative abundance (%)",
+                     ylabs = "Average relative abundance",
+                     main = "Relative abundance plot",
+                     violin=TRUE,
+                     violin_scale = "width",
+                     legend_title=predictor,
+                     N_taxa=NULL,
+                     By_median=TRUE,
+                     no_other_type=FALSE,
+                     legend_names=NULL,
+                     Time="Time",
+                     Timepoint=NULL,
+                     Strata=NULL,
+                     Strata_val="1",
+                     no_legends = FALSE,
+                     no_names=FALSE,
+                     italic_names=TRUE,
+                     Only_sig=FALSE,
+                     log=TRUE,
+                     log_max=100,
+                     stat_out=FALSE,
+                     p_val = TRUE,
+                     p_stars=FALSE,
+                     stats="non-parametric",
+                     p_adjust=FALSE,
+                     p_adjust_method="fdr",
+                     p_adjust_full=FALSE,
+                     colors=NULL,
+                     color_by=NULL,
+                     order=TRUE,
+                     reverse=FALSE,
+                     list_taxa=NULL,
+                     select_taxa=NULL,
+                     select_type="genus",
+                     bar_chart=FALSE,
+                     bar_chart_stacked=FALSE,
+                     facet_wrap=NULL,
+                     facet_label=NULL,
+                     facet_n=TRUE,
+                     percent=FALSE,
+                     order_by="Time",
+                     order_val=NULL,
+                     text_angle_x=0)
+{
+  if(!is.null(list_taxa) & is.null(N_taxa)) N_taxa = length(list_taxa)
+  if(is.null(N_taxa) & is.null(list_taxa)) N_taxa=15
+  options(dplyr.summarise.inform = FALSE)
+  if(bar_chart_stacked==TRUE) {
+    bar_chart=TRUE
+    p_val=FALSE
+  }
+  if(predictor=="none") {
+    sample_data(phylo_ob)$none <- "All samples"
+    p_val=FALSE
+    if(bar_chart_stacked==FALSE & is.null(color_by)) no_legends = TRUE
+  }
+  phylo_ob <- prune_samples(sample_sums(phylo_ob)>0,phylo_ob) #removes empty samples;
+  otu_mat <- as(otu_table(phylo_ob), "matrix")
+  if(taxa_are_rows(phylo_ob)) otu_mat <- t(otu_mat)
+  if(!is.null(facet_wrap)) index <- !is.na(get_variable(phylo_ob, predictor)) & !is.na(get_variable(phylo_ob, facet_wrap))
+  else   index <- !is.na(get_variable(phylo_ob, predictor))
+  if(length(unique(index)) !=1) message(paste(length(which(index==F)), "samples have been removed from full dataset (predictor/facet_wrap NAs)"))
+  otu_mat <- otu_mat[index,]
+  otu_mat  <- otu_mat[,colSums(otu_mat)>0] #removes empty OTUs;
+  OTU_index <- colnames(otu_mat)
+  tax <- as(tax_table(phylo_ob), "matrix") %>% data.frame(stringsAsFactors=FALSE)
+  tax <- tax[rownames(tax) %in% OTU_index,]
+  tax[is.na(tax)] <- "unclassified"
+  tax[tax==""] <- "unclassified"
+  names(tax) <- tolower(names(tax))
+  type <- tolower(type)
+  if(!is.null(select_type)) select_type <- tolower(select_type)
+  tax$OTU <- rownames(tax)
+  samp <- data.frame(sample_data(phylo_ob), stringsAsFactors=TRUE)
+  samp <- samp[index,]
+  if(is.null(facet_wrap)) samp$wrap <- ""
+  if(!is.null(facet_wrap)) samp$wrap <- samp[,facet_wrap]
+  if(!is.null(Timepoint)){
+    index <- rownames(samp[(samp[,Time] ==Timepoint),])
+    otu_mat <- otu_mat[rownames(otu_mat) %in% index,]
+    otu_mat  <- otu_mat[,colSums(otu_mat)>0] #removes empty OTUs;
+    OTU_index <- colnames(otu_mat)
+    tax <- tax[rownames(tax) %in% OTU_index,]
+    samp <- samp[rownames(samp) %in% index,]
+  }
+  
+  list <-as.character(tax[,type])
+  unique_tax <- unique(list)
+  
+  abund <- as.data.frame(matrix(rep(0,(length(unique_tax)*nrow(otu_mat))),ncol=length(unique_tax)))
+  row.names(abund) <- row.names(otu_mat)
+  names(abund) <- unique_tax
+  for(i in names(abund)){
+    if(is.array(otu_mat[,list==i]))  abund[,i] <- rowSums(otu_mat[,list== i])
+    else   abund[,i] <- otu_mat[,list== i]
+  }
+  abund_org <- abund
+  if(relative_abun==TRUE) abund <- apply(abund,1,function(x) x/sum(x)) %>% t %>% as.data.frame()
+  abund_all <- abund
+  if (is.null(list_taxa) & !is.null(select_taxa)) {
+    list_taxa <- NULL
+    for(i in 1:length(select_taxa)){
+      list_taxa <- c(list_taxa,(as.character(unique(tax[grep(select_taxa[[i]],tax[,select_type],ignore.case=TRUE),type]))))
+    }
+  }
+  if (!is.null(list_taxa)) {
+    if (is.null(N_taxa)) N_taxa <- length(list_taxa)
+    abund <- abund[,colnames(abund) %in% list_taxa, drop = FALSE]
+    unique_tax <- names(abund)
+  }
+  
+  if(length(abund)>1){
+    index <- !is.na(rownames(samp))
+    if (!is.null(order_val))  index <- samp[,order_by] ==order_val
+    abund <- abund[,order(-colSums(abund[index,]))]
+    if (By_median)  abund <- abund[,order(-apply(abund[index,], 2, median))]
+    if("unclassified" %in% unique_tax) abund <- abund[c(setdiff(names(abund), "unclassified"),"unclassified")] #Move unclassified to end
+    if(N_taxa<length(unique_tax)) abund <- abund[-(length(unique_tax)-(length(unique_tax)-N_taxa)+1):-length(unique_tax)]
+    if(no_other_type==FALSE) abund[, paste("Other",type)] <- rowSums(abund_all[,!names(abund_all) %in% names(abund)])
+  }
+  index <- !is.na(rownames(samp))
+  if(!is.null(Strata)) index <- samp[,Strata]==Strata_val
+  samp2 <- samp %>% filter(index)
+  if(p_val==TRUE & (bar_chart==FALSE | (bar_chart==TRUE & bar_chart_stacked==FALSE))){
+    if(p_adjust_full ==TRUE | stats=="mgs_feature"){
+      abund2 <- abund_org %>% filter(index)
+      if(relative_abun==TRUE & stats!="mgs_feature") abund2 <- apply(abund2,1,function(x) x/sum(x)) %>% t %>% as.data.frame()
+    }
+    else abund2 <- abund %>% filter(index)
+    if(stats=="mgs_feature" & length(levels(factor(samp2[,predictor])))>2){
+      stats="non-parametric"
+      message("MGS not available for >2 predictors, switching to non-parametric")
+    }
+    if(stats=="mixed" & is.null(id)){
+      stats="non-parametric"
+      message("No id variable for mixed model, switching to non-parametric")
+    }
+    if(stats=="mixed"){
+      message("Mixed model statistics")
+      pred <- samp2[,predictor]
+      id <- samp2[,id]
+      if(!is.null(facet_wrap)) {
+        message(paste0("Using ",facet_wrap," as mixed model group variable"))
+        facet <- samp2[,"wrap"]
+        pval <- cbind(abund2,pred,id,facet) %>% as_tibble() %>%
+          gather(variable, value,-"pred",-"id",-"facet") %>%
+          group_by(variable) %>%
+          summarize(pval = lmerTest::lmer(value ~ pred + factor(facet) + (1 | id)) %>% anova %>% filter(row_number()==1) %>% .$'Pr(>F)', .groups = 'drop')
+      }
+      else {
+        message(paste0("No group variable defined for mixed model in facet_wrap"))
+        pval <- cbind(abund2,pred,id) %>% as_tibble() %>%
+          gather(variable, value,-"pred",-"id") %>%
+          group_by(variable) %>%
+          summarize(pval = lmerTest::lmer(value ~ pred + (1 | id)) %>% anova %>% .$'Pr(>F)', .groups = 'drop')
+      }
+      pval <- pval %>%  mutate(wrap="Mixed",p_adjust=p.adjust(pval, p_adjust_method))
+      pval$wrap <- factor(pval$wrap,levels=c(levels(factor(samp2[,facet_wrap])),"Mixed"))
+    }
+    else {
+      pval <- data.frame()
+      for (i in 1:length(unique(samp2$wrap))){
+        index <- samp2$wrap==unique(samp2$wrap)[[i]]
+        abund3 <- abund2 %>% filter(index)
+        pred <- samp2[index,predictor]
+        # test with featureModel
+        if(stats=="mgs_feature"){
+          mgs <- metagenomeSeq::newMRexperiment(counts = t(abund3))
+          mgsp <- metagenomeSeq::cumNormStat(mgs)
+          mgs <- metagenomeSeq::cumNorm(mgs, mgsp)
+          mod <- model.matrix(~as.numeric(pred == unique(pred)[1]))
+          if(length(unique(samp2$wrap))>1) message(paste0("MGS FeatureModel for facet_wrap = ",unique(samp2$wrap)[[i]]))
+          else message("MGS FeatureModel")
+          mgsfit <- metagenomeSeq::fitFeatureModel(obj=mgs,mod=mod)
+          pval_tmp <- data.frame(variable=mgsfit$taxa,pval=mgsfit$pvalues)
+        }
+        if(stats=="non-parametric"){   #Kruskal-Wallis
+          if(i==1) message("Non-parametric statistics")
+          pval_tmp <- cbind(abund3,pred) %>% as_tibble() %>%
+            gather(variable, value,-"pred") %>%
+            group_by(variable) %>%
+            summarize(pval = kruskal.test(value ~ pred)$p.value, .groups = 'drop')
+        }
+        if(stats=="parametric"){
+          if(i==1) message("Parametric statistics")
+          pval_tmp <- cbind(abund3,pred) %>% as_tibble() %>%
+            gather(variable, value,-"pred") %>%
+            group_by(variable) %>%
+            summarize(pval = oneway.test(value ~ pred)$p.value, .groups = 'drop')
+        }
+        pval_tmp <- pval_tmp %>%
+          mutate(wrap=unique(samp2$wrap)[[i]],p_adjust=p.adjust(pval, p_adjust_method))
+        pval <- rbind(pval,pval_tmp)
+      }
+    }
+    if(p_adjust) message(paste(p_adjust_method,"correction applied for",length(unique(pval$variable)),"taxa"))
+  }
+  
+  bacteria <- rev(names(abund))
+  subset <- cbind(samp[!names(samp) %in% bacteria], abund) #fjerner evt eksisterende navne fra dataset og merger;
+  subset$predictor2 <-  as.factor(subset[,predictor])
+  subset$ID <- rownames(subset)
+  if(!is.null(Strata)) subset[,Strata] <- as.factor(subset[,Strata])
+  if(!is.null(facet_wrap)){
+    subset$wrap <-  as.factor(subset[,facet_wrap])
+    if(!is.null(Strata))
+      molten <- subset[,c("ID",paste(bacteria),"predictor2",Strata,"wrap")] %>% gather(variable, value,-"predictor2",-"ID",-all_of(Strata),-"wrap")
+    else
+      molten <- subset[,c("ID",paste(bacteria),"predictor2","wrap")] %>% gather(variable, value,-"predictor2",-"ID",-"wrap")
+  }
+  if(is.null(facet_wrap)){
+    if(!is.null(Strata))
+      molten <- subset[,c("ID",paste(bacteria),"predictor2",Strata)] %>% gather(variable, value,-"predictor2",-"ID",-all_of(Strata))
+    else
+      molten <- subset[,c("ID",paste(bacteria),"predictor2")] %>% gather(variable, value,-"predictor2",-"ID")
+  }
+  if(!is.null(color_by)){
+    molten[molten$variable != paste("Other",type),"colvar"] <- molten %>% dplyr::filter(variable != paste("Other",type)) %>% .[,"variable"] %>% match(tax[,type]) %>% tax[.,color_by] %>% as.character
+    molten[molten$variable == paste("Other",type),"colvar"] <- paste("Other",color_by) %>% as.character
+  }
+  
+  molten$variable <- gsub('_',' ',molten$variable)
+  
+  if(order)   ordered <- unique(molten$variable) #level order
+  if(!order)   ordered <-sort(unique(molten$variable))#level order alphabetically
+  
+  molten$variable <- factor(molten$variable, levels=ordered)
+  if(is.null(color_by))  molten$colvar <- molten$variable
+  if(!is.null(Strata))  molten <- molten[which(molten[,Strata]==Strata_val), ]
+  
+  if(is.null(colors)){
+    cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+    cols <- cols[1:length(levels(factor(molten$predictor2)))]
+  }
+  if(!is.null(colors)) cols <- colors
+  
+  if(bar_chart==TRUE & bar_chart_stacked==FALSE & is.null(legend_names))  legend_names <- as.character(levels(factor(molten$predictor2)))
+  if(is.null(legend_names))  legend_names <- as.character(levels(factor(molten$predictor2)))
+  ordered2<- rev(unique(molten$colvar))
+  if(reverse){
+    if(bar_chart==FALSE) {
+      molten$predictor2 <- factor(molten$predictor2, levels=rev(levels(molten$predictor2)))#manual faceting for levels;
+      legend_names <- rev(legend_names)
+      cols <- rev(cols)
+    }
+    if(bar_chart==TRUE) {
+      molten$colvar <- factor(molten$colvar, levels=rev(levels(factor(molten$colvar))))#manual faceting for levels;
+      molten$variable <- factor(molten$variable, levels=rev(levels(factor(molten$variable))))
+      cols <- rev(cols)
+      ordered2<- rev(ordered2)
+    }
+  }
+  
+  if(bar_chart){
+    log=FALSE
+    cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+    #  ordered <- levels(factor(molten$colvar))
+    if(is.null(color_by) & bar_chart_stacked==FALSE)   cols <- cols[1:length(levels(factor(molten$predictor2)))]
+    
+    else cols <- cols[c(1:length(levels(factor(molten$colvar)))-1,length(cols))]
+    if(!is.null(colors)) cols <- colors
+    if(is.null(color_by) & reverse==FALSE) cols <- rev(cols)
+    if(!is.null(color_by) & reverse==TRUE) cols <- rev(cols)
+    if(is.null(facet_wrap))  molten$wrap <- ""
+    molten_mean <- molten %>%
+      dplyr::group_by(variable,predictor2,wrap,colvar) %>%
+      dplyr::summarize(value = mean(value))
+    molten_mean$colvar <- factor(molten_mean$colvar, levels=ordered2)
+  }
+  #Calculate pvalue for outcomes
+  if(p_val==TRUE & ((bar_chart==TRUE & bar_chart_stacked==FALSE) | bar_chart==FALSE) & is.null(color_by)){
+    if(is.null(facet_wrap)) molten$wrap <- ""
+    if(!is.null(facet_wrap)) {
+      pval <- data.frame(pval=pval[gsub('_',' ',pval$variable) %in% ordered,]$pval,p_adjust=pval[gsub('_',' ',pval$variable) %in% ordered,]$p_adjust, variable=gsub('_',' ',pval[gsub('_',' ',pval$variable) %in% ordered,]$variable),wrap=pval[gsub('_',' ',pval$variable) %in% ordered,]$wrap)
+    }
+    else {
+      pval <- data.frame(pval=pval[gsub('_',' ',pval$variable) %in% ordered,]$pval,p_adjust=pval[gsub('_',' ',pval$variable) %in% ordered,]$p_adjust, variable=gsub('_',' ',pval[gsub('_',' ',pval$variable) %in% ordered,]$variable))
+      if(length(pval$variable)-length(ordered)<0) pval <- pval[match(pval$variable,ordered[length(pval$variable)-length(ordered)]),]
+    }
+    pval$predictor2 <- molten$predictor2[1]
+    pval$pval <- ifelse(is.na(pval$pval),1,pval$pval)
+    pval$p_adjust <- ifelse(is.na(pval$p_adjust),1,pval$p_adjust)
+    if(Only_sig){
+      index <- pval[pval$pval<0.05,"variable"]
+      molten <- molten[molten$variable %in% index,]
+      pval <- pval[pval$pval<0.05,]
+    }
+    
+    if(stat_out){
+      median_iqr <<- molten %>% dplyr::group_by(variable, predictor2) %>% dplyr::summarize( N = length(value),median = median(value)*100,Q1=quantile(value, 1/4)*100,Q3=quantile(value, 3/4)*100, IQR = IQR(value)) %>% as.data.frame
+      pval_out <<- pval
+      mean_sd <<- molten %>% dplyr::group_by(variable, predictor2) %>% dplyr::summarize( N = length(value),mean = mean(value)*100,sd=sd(value)*100) %>% as.data.frame
+    }
+  }
+  if(bar_chart==FALSE){
+    if(ncol(tax)>=6) molten$value <- molten$value+1e-6 #add pseudocount for log scale 0;
+    else   molten$value <- molten$value+0.001 #add pseudocount for log scale 0;
+    ordered <- levels(factor(molten$colvar))
+    p <- ggplot(molten, aes(x=variable, y=value, fill=predictor2)) +
+      {if(violin){geom_violin(scale = violin_scale,width = 0.65, position=position_dodge(width=0.9),size=1, color="#00000000")} else {geom_boxplot(width = 0.55, position=position_dodge(width=0.8),size=0.3,outlier.size = 0,outlier.color = "grey")}}+
+      {if(violin){stat_summary(fun=median, fun.min = min, fun.max = max, geom="point", size=0.8, color="black", position=position_dodge(width=0.9))} else {stat_summary(fun=median, fun.min = min, fun.max = max, geom="point", size=0.8, color="#00000000", position=position_dodge(width=0.9))}}+ theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),legend.key = element_blank(),legend.text=element_text(size=12),legend.key.size = unit(0.5, "cm"))+ coord_flip() +xlab(NULL)+ylab(xlabs)+ggtitle(main)
+    if(length(unique(molten$variable))>1) p <- p+ geom_vline(xintercept=seq(1.5, length(unique(molten$variable))-0.5, 1),lwd=0.2, colour="grey")
+    
+    p <- p +  scale_fill_manual(values =cols,labels=legend_names) + guides(fill = guide_legend(title=legend_title, reverse = TRUE,override.aes = list(linetype=0, shape=16,color=rev(cols),size=5, bg="white")))
+    
+  }
+  
+  # legend_names <- molten_mean[molten_mean$variable %in% rev(molten_mean$colvar)[1],] %>% arrange(desc(value)) %>% ungroup %>% pull(predictor2) #order by highest abundant taxa
+  if(bar_chart==TRUE){
+    if(bar_chart_stacked==TRUE)
+      p <-  ggplot(molten_mean,aes(x=factor(predictor2,levels=legend_names,labels=legend_names),y=value, fill=variable)) + theme_bw()+geom_bar(stat="identity")+ theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),legend.key = element_blank(),axis.title=element_text(size=14),legend.text=element_text(size=12), axis.text = element_text(size = 12),strip.text = element_text(size = 12),legend.key.size = unit(0.5, "cm"),text=element_text(size=12)) +xlab(NULL)+ylab(ylabs)+ggtitle(main) +  scale_fill_manual(values =cols,labels=ordered) + guides(fill = guide_legend(title=NULL))
+    if(bar_chart_stacked==FALSE){
+      if(!is.null(color_by)) p <-   ggplot(molten_mean,aes(x=variable,y=value, fill=colvar,group=wrap))+geom_bar(stat="identity", position = position_dodge(width = 0.95))+ scale_fill_manual(values =cols,labels=ordered2)+ guides(fill = guide_legend(title=color_by))
+      else {
+        p <-   ggplot(molten_mean,aes(x=variable,y=value, fill=predictor2))+geom_bar(stat="identity", position = position_dodge(width = 0.95))+ scale_fill_manual(values =cols,labels=legend_names)+ guides(fill = guide_legend(title=legend_title))
+      }
+      if(length(unique(molten_mean$variable))>1) p <- p+ geom_vline(xintercept=seq(1.5, length(unique(molten_mean$variable))-0.5, 1),lwd=0.2, colour="grey")
+      p <-  p+ theme_bw()  + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),legend.key = element_blank(),axis.title=element_text(size=14),legend.text=element_text(size=12), axis.text = element_text(size = 12),strip.text = element_text(size = 12),legend.key.size = unit(0.5, "cm"),text=element_text(size=12)) +xlab(NULL)+ylab(ylabs)+ggtitle(main)+ theme(strip.background = element_blank()) +coord_flip()
+    }
+  }
+  if(!is.null(facet_wrap))   {
+    if(is.null(facet_label)) label_names <- levels(factor(samp[,facet_wrap]))
+    if(!is.null(facet_label)) label_names <- facet_label
+    if(facet_n==TRUE){
+      label_names <- samp2 %>%
+        dplyr::group_by(get(facet_wrap)) %>%
+        dplyr::summarise(n = n()) %>%
+        dplyr::mutate(pasted_label = paste0(levels(factor(samp2[,facet_wrap])), ", n = ", n))
+      label_names <- as.character(label_names$pasted_label)
+    }
+    names(label_names) <- levels(factor(samp2[,facet_wrap]))
+    if(stats=="mixed") {
+      label_names <- c(label_names,"Mixed")
+      names(label_names) <- c(levels(factor(samp2[,facet_wrap])),"Mixed")
+    }
+    p <- p+ facet_grid(~wrap,labeller = labeller(wrap=label_names),scales = "free", space = "free")+  theme(strip.background = element_blank())
+    if(bar_chart==FALSE) p$layers[4:5] <- NULL
+  }
+  if(italic_names==TRUE &  (bar_chart==FALSE | (bar_chart==TRUE & bar_chart_stacked==FALSE)))   p <- p+ theme(axis.text.y=element_text(face = "italic"))
+  if(!is.null(color_by)) {
+    # p <- p + facet_grid(~predictor2, scales = "free", space = "free")
+    if(color_by=="genus" | color_by=="family" | color_by=="species") p <- p+ theme(legend.text=element_text(face = "italic"))
+    if(color_by==type & bar_chart_stacked==FALSE ) p <- p+theme(legend.position="none")
+  }
+  
+  if(p_val==TRUE){
+    if(log==FALSE){
+      if(bar_chart==TRUE) pval$y <- max(molten_mean$value)*1.10
+      else pval$y <- max(molten$value)*1.15
+    }
+    else pval$y <-ifelse(log_max==100,10,ifelse(log_max==10,0.126,0.0126))
+    if(p_adjust==TRUE){
+      if(log==FALSE & bar_chart==FALSE) pval$y_adjust <- 1.22
+      if(log==FALSE & bar_chart==TRUE) pval$y_adjust <- max(molten_mean$value)*1.25
+      if(log==TRUE) pval$y_adjust <- ifelse(log_max==100,105,ifelse(log_max==10,1.26,0.126))
+    }
+  }
+  if(log==TRUE){
+    if(p_val==FALSE){
+      if(log_max == 100)  p <- p+ scale_y_log10(breaks=c(.000001,.001,.01,.1,1),labels=c("0%","0.1%","1%","10%","100%"))
+      if(log_max == 10)  p <- p+ scale_y_log10(limits=c(0.001,0.13),breaks=c(.001,.01,.05,.1),labels=c("0%","1%","5%","10%"))
+      if(log_max == 1)  p <- p+ scale_y_log10(limits=c(0.001,0.013),breaks=c(.001,.01),labels=c("0%","1%"))
+    }
+    if(p_val==TRUE){
+      if(p_adjust){
+        if(log_max == 100)  p <- p+ scale_y_log10(breaks=c(.000001,.001,.01,.1,1,7,70),labels=c("0%","0.1%","1%","10%","100%", "P-value", "q-value"))
+        if(log_max == 10)  p <- p+ scale_y_log10(breaks=c(.001,.01,.05,0.1,0.126,1.26),labels=c("0%","1%","5%","10%", "P-value", "q-value"))
+        if(log_max == 1)  p <- p+ scale_y_log10(breaks=c(.001,.01,0.0126,0.126),labels=c("0%","1%", "P-value", "q-value"))
+      }
+      else{
+        if(log_max == 100)  p <- p+ scale_y_log10(breaks=c(.000001,.001,.01,.1,1,7),labels=c("0%","0.1%","1%","10%","100%", "P-value"))
+        if(log_max == 10)  p <- p+ scale_y_log10(breaks=c(.001,.01,.05,0.10,0.126),labels=c("0%","1%","5%","10%", "P-value"))
+        if(log_max == 1)  p <- p+ scale_y_log10(breaks=c(.001,.01,0.0126),labels=c("0%","1%", "P-value"))
+      }
+    }
+  }
+  if(log==FALSE){
+    if(p_val==FALSE) p <- p + scale_y_continuous(breaks=c(0,.25,.50,.75,1),labels=c("0%","25%","50%","75%","100%"))
+    if(p_val==TRUE){
+      if(p_adjust==TRUE) {
+        if(max(molten_mean$value)<=1 & max(molten_mean$value)>=0.75) p <- p + scale_y_continuous(breaks=c(0,.25,.50,.75,1,max(molten_mean$value)*1.07,max(molten_mean$value)*1.25),labels=c("0%","25%","50%","75%","100%", "P-value", "q-value"))
+        if(max(molten_mean$value)<0.75 & max(molten_mean$value)>=0.50) p <- p + scale_y_continuous(breaks=c(0,.25,.50,max(molten_mean$value)*1.07,max(molten_mean$value)*1.25),labels=c("0%","25%","50%", "P-value", "q-value"))
+        if(max(molten_mean$value)<0.50 & max(molten_mean$value)>=0.25) p <- p + scale_y_continuous(breaks=c(0,.1,.2,.3,.4,max(molten_mean$value)*1.07,max(molten_mean$value)*1.25),labels=c("0%","10%","20%","30%","40%", "P-value", "q-value"))
+        if(max(molten_mean$value)<0.25) p <- p + scale_y_continuous(breaks=c(0,.05,.1,.15,.2,max(molten_mean$value)*1.07,max(molten_mean$value)*1.25),labels=c("0%","5%","10%","15%","20%", "P-value", "q-value"))
+      }
+      if(p_adjust==FALSE) {
+        if(max(molten_mean$value)<=1 & max(molten_mean$value)>=0.75)  p <- p + scale_y_continuous(breaks=c(0,.25,.50,.75,1,max(molten_mean$value)*1.07),labels=c("0%","25%","50%","75%","100%", "P-value"))
+        if(max(molten_mean$value)<0.75 & max(molten_mean$value)>=0.50) p <- p + scale_y_continuous(breaks=c(0,.25,.50,max(molten_mean$value)*1.07),labels=c("0%","25%","50%", "P-value"))
+        if(max(molten_mean$value)<0.50 & max(molten_mean$value)>=0.25) p <- p + scale_y_continuous(breaks=c(0,.1,.2,.3,.4,max(molten_mean$value)*1.07),labels=c("0%","10%","20%","30%","40%", "P-value"))
+        if(max(molten_mean$value)<0.25) p <- p + scale_y_continuous(breaks=c(0,.05,.1,.15,.2,max(molten_mean$value)*1.07),labels=c("0%","5%","10%","15%","20%", "P-value"))
+      }
+    }
+  }
+  
+  p <-  p + theme(plot.background = element_blank(),panel.background = element_blank(),plot.title = element_text(hjust = 0.5))
+  p <-  p + theme(axis.text.x = element_text(angle = text_angle_x, vjust = ifelse(text_angle_x<0 & text_angle_x>-90 , 0, ifelse(text_angle_x>=0 & text_angle_x<90, 1, 0.5)), hjust=ifelse(text_angle_x==0 | text_angle_x==180 | text_angle_x==-180 | text_angle_x==180, 0.5, ifelse((text_angle_x<0 & text_angle_x>=-90) | text_angle_x>=270, 0, 1))))
+  if (bar_chart==TRUE & bar_chart_stacked==FALSE & percent==TRUE)  p <- p+  geom_text(aes(label = paste0(sprintf("%.2f",value*100), "%")), hjust = -.12, position=position_dodge(width=0.95))+scale_y_continuous(limits=c(0,max(molten_mean$value)+0.2),labels = scales::percent)
+  if(no_legends) p <- p + theme(legend.position="none")
+  if(no_names)  p <- p + theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())
+  stars.pval <- function (p.value)
+  {    unclass(symnum(p.value, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 1), symbols = c("***", "**",  "*", "NS")))
+  }
+  if(p_stars==TRUE & p_val==TRUE) p <- p + geom_text(data=pval,aes(x=variable,y=y,label=paste(stars.pval(pval))) ,size=3,hjust=1)
+  
+  if(p_stars==FALSE & p_val==TRUE & (bar_chart==FALSE | (bar_chart==TRUE & bar_chart_stacked==FALSE))){
+    p <- p + geom_text(data=pval,aes(x=variable,y=y,label=ifelse(pval<0.05, paste(format.pval(pval,1,0.001,nsmall=3)),"")) ,size=3,hjust=1,fontface="bold")
+    p <- p + geom_text(data=pval,aes(x=variable,y=y,label=ifelse(pval>=0.05, paste(format.pval(pval,1,0.001,nsmall=3)),"")) ,size=3,hjust=1)
+    if(p_adjust){
+      p <- p + geom_text(data=pval,aes(x=variable,y=y_adjust,label=ifelse(p_adjust<0.05, paste(format.pval(p_adjust,1,0.001,nsmall=3)),"")) ,size=3,hjust=1,fontface="bold")
+      p <- p + geom_text(data=pval,aes(x=variable,y=y_adjust,label=ifelse(p_adjust>=0.05, paste(format.pval(p_adjust,1,0.001,nsmall=3)),"")) ,size=3,hjust=1)
+    }
+    if(stats=="mixed" & !is.null(facet_wrap)){
+      if(bar_chart==FALSE) p <- p + expand_limits(y = 2)
+      if(bar_chart==TRUE) p <- p + expand_limits(y = max(molten_mean2$value))
+    }
+  }
+  return(molten)
+}
+```
+
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+psdata1 <- subset_samples(psdata, samplingTime != "T0")
+table_HM <- rabutable(psdata1, predictor= "New_Diet", type = "Genus", facet_wrap ="samplingTime", N_taxa = 20)
+
+
+data = table_HM %>%   
+  mutate(ID = paste0(variable, ":", wrap, "_", predictor2)) %>%  
+  group_by(ID) %>%   
+  summarize(meanvalue = mean(log(value))) %>%   
+  mutate(feedtime = sub('.*:', '', ID)) %>%  
+  mutate(ID = sub(':.*', '', ID)) %>%   
+  pivot_wider(names_from = feedtime, values_from = meanvalue)    
+
+rabuplot_df_genus <- as.data.frame(data)
+rownames(rabuplot_df_genus) <- data$ID 
+rabuplot_df_genus <- rabuplot_df_genus[,-1] 
+
+
+heatmap_colors <- colorRampPalette(c("#18b29f","#FFFFFF","#ac6721"), interpolate = "spline", space = "rgb")(51)
+
+annotation_col <- 
+  colnames(rabuplot_df_genus) %>% 
+  as.data.frame() %>% 
+  dplyr::rename(common = ".") %>% 
+  tidyr::separate(col = common,  into = c("Time", "Diet"), remove = F, extra = "drop") %>% # If replicates are present, we drop them here
+  dplyr::select(common,Time, Diet) %>%  
+  tibble::column_to_rownames(var = "common")
+
+annotation_colors_1 <- list(
+  Time = c(`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
+  Diet = c(`CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
+
+
+row.names(rabuplot_df_genus)[3] <- "BCP group"   
+plot7 <- pheatmap(t(rabuplot_df_genus), 
+         annotation_row = annotation_col,
+         annotation_colors = annotation_colors_1,  
+         color = heatmap_colors,
+         scale = "row", 
+         cluster_rows = F, 
+         cluster_cols = T, 
+         gaps_row = c(4,8),
+         show_colnames = T,
+        show_rownames = F)
+
+
+```
+
+## Transcriptomics
+Import data
+```{r}
+host_gut_rawCounts_total1 <- read.table("/Users/shashankgupta/Desktop/ImprovAFish/host_data/host_gut_count.txt")
+sample_info <- read.csv("/Users/shashankgupta/Desktop/ImprovAFish/ImprovAFish/sample_info.csv", row.names = 1)
+omics_data_host <- host_gut_rawCounts_total1
+host_gut_mapping_file <- sample_info
+```
+
+Initial formatting
+Main idea of this chunk of code is make sure we have same number of samples in `countData` and samples in `colData` for `DESeq2`. Also the order of the samples in `colData` need to match the order of the samples in `countData`
+```{r}
+sample_info$ID_New <- paste(sample_info$Time, "_",
+                            sample_info$New_Diet, "_", 
+                            sample_info$Tank_number, "_", "0",
+                            sample_info$Sample_Number, 
+                                      sep = "")
+head_change <- subset(sample_info, select=c("common" ,"ID_New"))
+row.names(sample_info) <- sample_info$ID_New
+
+omics_data_host1 <- omics_data_host[, colnames(omics_data_host) %in% sample_info$ID_New]
+omics_data_host <- omics_data_host1
+# rename colnames of omics_data_host using new ID
+df1 <- subset(sample_info, select= c("common", "ID_New"))
+omics_data_host %>% 
+  rename_with(~deframe(df1)[.x], .cols = df1$ID_New) %>% 
+  select(any_of(df1$ID_New)) -> omics_data_host_new
+omics_data_host <- omics_data_host_new
+reorder_idx <- match(sample_info$ID_New, colnames(omics_data_host))
+omics_data_host <- omics_data_host[ , reorder_idx]
+all(colnames(omics_data_host) == sample_info$ID_New)
+```
+
+DESeq2 analysis
+```{r}
+df <- round(omics_data_host) %>%
+  # The next steps require a data frame and round() returns a matrix
+  as.data.frame() %>%
+  # Only keep rows that have total counts above the cutoff
+  dplyr::filter(rowSums(.) >= 0)
+
+#all(colnames(df) == rownames(sample_info))
+
+dds <- DESeqDataSetFromMatrix(
+  countData = df, # Our prepped data frame with counts
+  colData = sample_info, # Data frame with annotation for our samples
+  design = ~1 # Here we are not specifying a model
+)
+```
+
+```{r, warning=FALSE, error=FALSE, results='hide'}
+dds$group <- factor(paste0(dds$Time, dds$New_Diet))
+design(dds) <- ~ group-1
+
+dds_trial_1 <- DESeq(dds, parallel = T)
+resultsNames(dds_trial_1 )
+
+annot_function <- read_tsv("/Users/shashankgupta/Desktop/ImprovAFish/Salmo_salar-GCA_905237065.2_gene_annotations.tsv")
+annot_function <- annot_function[, c("gene_id", "v2.gene_id.NCBI","v2.gene_name.ensembl", "v2.product")]
+```
+
+```{r}
+vst <- vst(dds_trial_1)
+pcaPlot <- DESeq2::plotPCA(vst, intgroup = c("Time", "New_Diet", "group"), ntop = nrow(dds_trial_1), returnData = TRUE) 
+
+percentVar <- round(100 * attr(pcaPlot, "percentVar"))
+
+plot8<- ggplot(pcaPlot, aes(PC1, PC2, color=New_Diet)) + 
+  geom_point(aes(fill ="New_Diet" ),  size =2.5) + 
+  geom_point(shape = 1, size = 2.5,colour = "black") +
+  theme_bw() + ggtitle("Hindgut: Host transcriptomics") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("PC 1 [12 %]") + ylab("PC 2 [6 %]") + 
+  stat_ellipse() + scale_fill_manual(values =annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet) +
+  guides(color = guide_legend(title = "Diet")) 
+
+
+plot8.1<- ggplot(pcaPlot, aes(PC1, PC2, color=Time)) + 
+  geom_point(aes(fill ="Time" ),  size =2.5) + 
+  geom_point(shape = 1, size = 2.5,colour = "black") +
+  theme_bw() + ggtitle("Hindgut: Host transcriptomics") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("PC 1 [12 %]") + ylab("PC 2 [6 %]") + 
+  stat_ellipse() + scale_fill_manual(values =annotation_colors$samplingTime) + 
+  scale_colour_manual( values = annotation_colors$samplingTime) +
+  guides(color = guide_legend(title = "Life stage")) 
+
+
+# Perform PERMANOVA using adonis2
+dist_matrix <- dist(pcaPlot[, c("PC1", "PC2")])
+permanova_result <- adonis2(dist_matrix ~ Time, data = pcaPlot, permutations = 9999)
+permanova_result
+```
+
+
+## Metatranscriptomics
+Import data and intial preprocessing
+```{r, warning=FALSE}
+# Load metatranscriptomics data
+dds_metatranscriptomics <- readRDS("/Users/shashankgupta/Desktop/ImprovAFish/github/ImprovaFish/MetaTranscriptomics/dds_metatranscriptomics.rds")
+
+# Filter out T0 time point
+dds_metatranscriptomics <- dds_metatranscriptomics[ , dds_metatranscriptomics$TimePoint != "T0"]
+
+# Prepare data for analysis
+dds_metatranscriptomics$New_Diet <- toupper(dds_metatranscriptomics$Treatment)
+dds_metatranscriptomics$Time <- toupper(dds_metatranscriptomics$TimePoint)
+dds_metatranscriptomics$group <- factor(paste0(dds_metatranscriptomics$Time, dds_metatranscriptomics$New_Diet))
+design(dds_metatranscriptomics) <- ~ group-1
+
+# Calculate gene sums and filter out low-expressed genes
+gene_sums <- rowSums(counts(dds_metatranscriptomics, normalized = FALSE))
+dds_filtered <- dds_metatranscriptomics[gene_sums >= 50,]
+
+# Perform DESeq analysis
+dds_metatranscriptomics <- DESeq(dds_filtered, parallel = TRUE)
+
+# Explore results
+resultsNames(dds_metatranscriptomics)
+res <- results(dds_metatranscriptomics)
+
+# Count and print the number of differentially expressed genes with adjusted p-value < 0.05
+cat("Number of differentially expressed microbial genes (padj < 0.05):", sum(res$padj < 0.05), "\n")
+
+# Display summary of DESeq results
+summary(res)
+
+# Order results by adjusted p-value
+res <- res[order(res$padj),]
+
+# Filter and arrange results for display
+res_tbl <- as_tibble(res, rownames = "ENSEMBL") %>%
+  filter(padj < 0.05) %>%
+  arrange(padj)
+
+# Perform variance stabilizing transformation (VST)
+vst_data <- vst(dds_metatranscriptomics)
+
+# Generate PCA plot
+pcaPlot <- DESeq2::plotPCA(vst_data, intgroup = c("Time", "New_Diet", "group"), ntop = nrow(dds_trial_1), returnData = TRUE) 
+
+# Extract percentage of variance explained by PCs
+percentVar <- round(100 * attr(pcaPlot, "percentVar"))
+
+# Create PCA plot using ggplot2
+plot9 <- ggplot(pcaPlot, aes(PC1, PC2, color=New_Diet)) + 
+  geom_point(aes(fill ="New_Diet" ),  size =2.5) + 
+  geom_point(shape = 1, size = 2.5,colour = "black") +
+  theme_bw() + ggtitle("Hindgut: Metatranscriptomics") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab(paste("PC 1 [", percentVar[1], "%]")) + ylab(paste("PC 2 [", percentVar[2], "%]")) + 
+  stat_ellipse() + scale_fill_manual(values = annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet) +
+  guides(color = guide_legend(title = "Diet")) 
+
+```
+
+```{r}
+contrasts <- c("T1MC1", "T1MC2", "T1MN3")
+
+for (contrast in contrasts) {
+  contrast_group <- paste0("group", contrast)
+  contrast_levels <- list(contrast_group, "groupT1CTR")
+  
+  res <- results(dds_metatranscriptomics, contrast = contrast_levels)
+  
+  # Extract the number of differentially expressed genes with adjusted p-value < 0.05
+  num_de_genes <- sum(res$padj < 0.05, na.rm = TRUE)
+  
+  # Print informative message
+  cat("Number of differentially expressed microbial genes at time point 1 (T1)", "for CTR vs", contrast_group, "is", num_de_genes, "\n")
+}
+
+
+
+contrasts <- c("T2MC1", "T2MC2", "T2MN3")
+
+for (contrast in contrasts) {
+  contrast_group <- paste0("group", contrast)
+  contrast_levels <- list(contrast_group, "groupT2CTR")
+  
+  res <- results(dds_metatranscriptomics, contrast = contrast_levels)
+  
+  # Extract the number of differentially expressed genes with adjusted p-value < 0.05
+  num_de_genes <- sum(res$padj < 0.05, na.rm = TRUE)
+  
+  # Print informative message
+  cat("Number of differentially expressed microbial genes at time point 2 (T2)", contrast, "for CTR vs", contrast_group, "is", num_de_genes, "\n")
+}
+
+
+contrasts <- c("T3MC1", "T3MC2", "T3MN3")
+
+for (contrast in contrasts) {
+  contrast_group <- paste0("group", contrast)
+  contrast_levels <- list(contrast_group, "groupT3CTR")
+  
+  res <- results(dds_metatranscriptomics, contrast = contrast_levels)
+  
+  # Extract the number of differentially expressed genes with adjusted p-value < 0.05
+  num_de_genes <- sum(res$padj < 0.05, na.rm = TRUE)
+  
+  # Print informative message
+  cat("Number of differentially expressed microbial genes at time point 3 (T3)", contrast, "for CTR vs", contrast_group, "is", num_de_genes, "\n")
+}
+
+
+```
+<!-- ## Metabolomics -->
+```{r, message=FALSE, warning=FALSE, results='hide', echo=FALSE, eval=FALSE}
+annotation_colors <- list(
+  samplingTime = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
+  New_Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
+library("MetaboAnalystR")
+getwd()
+mSet<-InitDataObjects("conc", "mf", FALSE)
+mSet<-SetDesignType(mSet, "multi")
+mSet<-Read.TextDataTs(mSet, "/Users/shashankgupta/Desktop/ImprovAFish/Metabolomics/Metabolomics/Final_Paper_Renaming/RP_HILIC_merged.csv", "rowmf")
+mSet<-ReadMetaData(mSet, "/Users/shashankgupta/Desktop/ImprovAFish/Metabolomics/Metabolomics/Final_Paper_Renaming/RP_HILIC_merged_METADATA.csv")
+mSet<-SanityCheckData(mSet)
+mSet<-ReplaceMin(mSet);
+mSet<-SanityCheckMeta(mSet, 1)
+mSet<-SetDataTypeOfMeta(mSet);
+mSet<-SanityCheckData(mSet)
+mSet<-PreparePrenormData(mSet)
+mSet<-Normalization(mSet, "MedianNorm", "LogNorm", "AutoNorm", ratio=FALSE, ratioNum=20)
+mSet <- PCA.Anal(mSet)
+metabolites_pca <- data.frame(mSet$analSet$pca$x)
+metabolites_pca <- metabolites_pca[, c(1:2)]
+metabolites_pca <- metabolites_pca %>%
+  rownames_to_column(var = "Sample") %>%
+  mutate(
+    Time = ifelse(grepl("T2|T3", Sample), substr(Sample, 1, 2), NA),
+    New_Diet = ifelse(
+      grepl("CTR|MC1|MC2|MN3", Sample),
+      gsub(".*(CTR|MC1|MC2|MN3).*", "\\1", Sample),
+      NA
+    )
+  ) %>%
+  select(Sample, New_Diet, Time, everything()) %>%
+  column_to_rownames(var = "Sample")
+
+plot10<- ggplot(metabolites_pca, aes(PC1, PC2, color=New_Diet)) + 
+  geom_point(aes(fill ="New_Diet" ),  size =2.5) + 
+  geom_point(shape = 1, size = 2.5,colour = "black") +
+  theme_bw() + ggtitle("Hindgut: Metabolomics") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("PC 1 [33.6 %]") + ylab("PC 2 [11.3 %]") + 
+  stat_ellipse() + scale_fill_manual(values =annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet) +
+  guides(color = guide_legend(title = "Diet")) 
+
+
+
+plot10.1 <- ggplot(metabolites_pca, aes(PC1, PC2, color=Time)) + 
+  geom_point(aes(fill ="Time" ),  size =2.5) + 
+  geom_point(shape = 1, size = 2.5,colour = "black") +
+  theme_bw() +# ggtitle("Hindgut: Metabolomics") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("PC 1 [33.6 %]") + ylab("PC 2 [11.3 %]") + 
+  stat_ellipse() + scale_fill_manual(values =annotation_colors$samplingTime) + 
+  scale_colour_manual( values = annotation_colors$samplingTime) +
+  guides(color = guide_legend(title = "Life stage")) 
+
+
+plot_grid(plot10, plot10.1, labels = "AUTO")
+
+
+
+# Perform PERMANOVA using adonis2
+dist_matrix <- dist(metabolites_pca[, c("PC1", "PC2")])
+permanova_result <- adonis2(dist_matrix ~ Time, data = metabolites_pca, permutations = 9999)
+print(permanova_result)
+```
+
+```{r, eval=FALSE, echo=FALSE, results='hide', echo=FALSE, eval=FALSE}
+
+metabolites <- data.frame(mSet$dataSet$norm)
+metabolites<-t(metabolites)
+raw <- as.matrix(metabolites)
+OTU = otu_table(raw, taxa_are_rows = TRUE)
+dat <- read.csv("/Users/shashankgupta/Desktop/ImprovAFish/Metabolomics/Metabolomics/Final_Paper_Renaming/RP_HILIC_merged_METADATA.csv")
+row.names(dat) <- dat$Sample
+dat$New_Diet <- toupper(dat$Diet)
+
+# Merge into one complete phyloseq object
+ps <- merge_phyloseq(otu_table(OTU), sample_data(dat))
+tt <- as.data.frame(row.names(metabolites))
+row.names(tt) <- tt$`row.names(metabolites)`
+colnames(tt)[1] <- "Kingdom"
+tax_table(ps) <- as.matrix(tt)
+set.seed(12345)
+
+ps_MC1<-subset_samples(ps, Time %in% c("T2") & New_Diet %in% c("CTR", "MC1"))
+ps_MC1 <- prune_taxa(taxa_sums(ps_MC1) > 0, ps_MC1)
+lef_out<-microbiomeMarker::run_lefse(ps_MC1, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.05,
+                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
+
+plot_ef_bar(lef_out)
+
+ps_MC2<-subset_samples(ps, Time %in% c("T2") & New_Diet %in% c("CTR", "MC2"))
+ps_MC2 <- prune_taxa(taxa_sums(ps_MC2) > 0, ps_MC2)
+lef_out<-run_lefse(ps_MC2, group = "New_Diet", norm = "CPM", 
+                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
+
+plot_ef_bar(lef_out)
+
+ps_MN3<-subset_samples(ps, Time %in% c("T2") & New_Diet %in% c("CTR", "MN3"))
+ps_MN3 <- prune_taxa(taxa_sums(ps_MN3) > 0, ps_MN3)
+lef_out<-run_lefse(ps_MN3, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.01,
+                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
+
+plot_ef_bar(lef_out)
+
+
+ps_MC1<-subset_samples(ps, Time %in% c("T3") & New_Diet %in% c("CTR", "MC1"))
+ps_MC1 <- prune_taxa(taxa_sums(ps_MC1) > 0, ps_MC1)
+lef_out<-run_lefse(ps_MC1, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.05,
+                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
+
+plot_ef_bar(lef_out)
+
+ps_MC2<-subset_samples(ps, Time %in% c("T3") & New_Diet %in% c("CTR", "MC2"))
+ps_MC2 <- prune_taxa(taxa_sums(ps_MC2) > 0, ps_MC2)
+lef_out<-run_lefse(ps_MC2, group = "New_Diet", norm = "CPM", 
+                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
+
+plot_ef_bar(lef_out)
+
+ps_MN3<-subset_samples(ps, Time %in% c("T3") & New_Diet %in% c("CTR", "MN3"))
+ps_MN3 <- prune_taxa(taxa_sums(ps_MN3) > 0, ps_MN3)
+lef_out<-run_lefse(ps_MN3, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.01,
+                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
+
+plot_ef_bar(lef_out)
+
+```
+
+
+
+```{r, fig.align='center', fig.height=12, fig.width=12}
+
+plot_left <- plot_grid(plot2, plot1, plot7$gtable, align = "hv", ncol = 1, rel_heights =  c(.6,.6,1.5), labels = c('B', 'C', 'G'))
+
+plot_right <- plot_grid(plot3, plot4, plot8, plot9, align = "hv", ncol = 1, rel_widths = c(1,1,1,1,1), labels = c('D', 'E', 'F', 'H' ))
+
+plot_grid(plot_left, plot_right, align = "hv", rel_widths = c(2,1))
+```
+
