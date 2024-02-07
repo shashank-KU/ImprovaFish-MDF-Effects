@@ -64,7 +64,12 @@ annotation_colors <- list(
   Timepoint = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
   Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
 
-fish_data <- read.csv("/Users/shashankgupta/Desktop/ImprovAFish/FInal_Figures/Metrics.csv", row.names = 1)
+# Specify the path to your CSV file on GitHub
+csv_file <- "Phenotypic/Metrics_low_dosage.csv"
+csv_url <- paste0("https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/", csv_file)
+
+# Read the CSV file
+fish_data <- read.csv(url(csv_url), row.names = 1)
 
 
 fish_data$Diet <- factor(fish_data$Diet, levels=c('start', 'CTR', 'MC1', 'MC2', 'MN3'))
@@ -141,13 +146,12 @@ fish_data %>%
 ## Metagenomics
 Import data and clean the taxonomy
 ```{r, warning=FALSE, message=FALSE}
-setwd("/Users/shashankgupta/Desktop/ImprovAFish/github/ImprovaFish/Metagenomics")
-raw <- import_biom("/Users/shashankgupta/Desktop/ImprovAFish/exported-feature-table/feature-table_taxonomy.biom")
-tree <- read_tree("/Users/shashankgupta/Desktop/ImprovAFish/exported-feature-table/tree.nwk")
-refseq <- Biostrings::readDNAStringSet("/Users/shashankgupta/Desktop/ImprovAFish/exported-feature-table/dna-sequences.fasta", use.names = TRUE)
-dat <- read.table("/Users/shashankgupta/Desktop/ImprovAFish/metadata.txt", header = TRUE,row.names = 1, sep = "\t")
-# Merge into one complete phyloseq object
-all <- merge_phyloseq(raw, sample_data(dat), tree, refseq)
+base_url <- "https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/"
+# Specify the path to your RDS file on GitHub
+rds_file <- "Metagenomics/low_dosage_trial/metagenomics_low_MDF.rdata"
+rds_url <- paste0(base_url, rds_file)
+# Read the RDS file
+all <- readRDS(url(rds_url))
 tax <- data.frame(tax_table(all), stringsAsFactors = FALSE)
 tax <- tax[,1:7] # No info in col 8-15
 # Set informative colnames
@@ -1172,8 +1176,8 @@ Import data
 base_url <- "https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/"
 
 # Specify the paths to your files on GitHub
-host_gut_rawCounts_url <- paste0(base_url, "Transcriptomics/host_gut_count.txt")
-sample_info_url <- paste0(base_url, "Transcriptomics/sample_info.csv")
+host_gut_rawCounts_url <- paste0(base_url, "Transcriptomics/low_dosage_trial/host_gut_count.txt")
+sample_info_url <- paste0(base_url, "Transcriptomics/low_dosage_trial/sample_info.csv")
 
 # Read the files
 host_gut_rawCounts_total1 <- read.table(url(host_gut_rawCounts_url))
@@ -1274,7 +1278,7 @@ permanova_result
 Import data and intial preprocessing
 ```{r, warning=FALSE}
 # Specify the path to your RDS file on GitHub
-rds_file <- "Metatranscriptomics/dds_metatranscriptomics.rds"
+rds_file <- "Metatranscriptomics/low_dosage_trial/dds_metatranscriptomics.rds"
 rds_url <- paste0("https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/", rds_file)
 
 # Read the RDS file
