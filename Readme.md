@@ -54,7 +54,7 @@ We investigated the effects of a low dosage trial of beta-mannan supplementation
 
 Over a 110-day period, fish were subjected to continuous feeding, and samples were collected at various time points for analysis. The results indicated that the 0.2% beta-mannan supplementation had negligible effects on host gene expression, gut microbiome structure, and function. Biometric traits, fish welfare indicators, and gut tissue samples were examined, revealing no significant changes in salmon health or performance. Additionally, the microbial community profiling through 16S rRNA gene sequencing showed limited alterations in bacterial composition.
 
-Steps used for low dosage of MDF trial mentioned [here] [https://shashank-ku.github.io/ImprovaFish-MDF-Effects/Low_dosage_MDF_trial.html]
+Steps used for low dosage of MDF trial mentioned [here](https://shashank-ku.github.io/ImprovaFish-MDF-Effects/Low_dosage_MDF_trial.html)
 
 ### Step 3. High dosage MDF trial
 This part explores the impact of a high-dose beta-mannan supplementation trial on Atlantic salmon (Salmo salar) and their gut microbiomes. The trial involved fish acclimatized in recirculated freshwater tanks. The experimental diets included a control diet (CTR) and an experimental diet supplemented with 4% beta-mannan derived from Norway Spruce wood (4%MN3).
