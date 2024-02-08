@@ -1,0 +1,109 @@
+SampleID	Labels	notes	New_Diet	sampleType
+D1T4L_1	IFC_D1_tk4_Lh01	"liver, CTR diet"	CTR	liver
+D1T4L_2	IFC_D1_tk4_Lh02	"liver, CTR diet"	CTR	liver
+D1T4L_3	IFC_D1_tk4_Lh03	"liver, CTR diet"	CTR	liver
+D1T4L_4	IFC_D1_tk4_Lh04	"liver, CTR diet"	CTR	liver
+D1T4L_5	IFC_D1_tk4_Lh05	"liver, CTR diet"	CTR	liver
+D1T4L_6	IFC_D1_tk4_Lh06	"liver, CTR diet"	CTR	liver
+D3T5L_1	IFC_D3_tk5_Lh01	"liver, 4% betamannan diet"	4%MN3	liver
+D3T5L_2	IFC_D3_tk5_Lh02	"liver, 4% betamannan diet"	4%MN3	liver
+D3T5L_3	IFC_D3_tk5_Lh03	"liver, 4% betamannan diet"	4%MN3	liver
+D3T5L_4	IFC_D3_tk5_Lh04	"liver, 4% betamannan diet"	4%MN3	liver
+D3T5L_5	IFC_D3_tk5_Lh05	"liver, 4% betamannan diet"	4%MN3	liver
+D3T5L_6	IFC_D3_tk5_Lh06	"liver, 4% betamannan diet"	4%MN3	liver
+D1T6L_1	IFC_D1_tk6_Lh01	"liver, CTR diet"	CTR	liver
+D1T6L_2	IFC_D1_tk6_Lh02	"liver, CTR diet"	CTR	liver
+D1T6L_3	IFC_D1_tk6_Lh03	"liver, CTR diet"	CTR	liver
+D1T6L_4	IFC_D1_tk6_Lh04	"liver, CTR diet"	CTR	liver
+D1T6L_5	IFC_D1_tk6_Lh05	"liver, CTR diet"	CTR	liver
+D1T6L_6	IFC_D1_tk6_Lh06	"liver, CTR diet"	CTR	liver
+D3T7L_1	IFC_D3_tk7_Lh01	"liver, 4% betamannan diet"	4%MN3	liver
+D3T7L_2	IFC_D3_tk7_Lh02	"liver, 4% betamannan diet"	4%MN3	liver
+D3T7L_3	IFC_D3_tk7_Lh03	"liver, 4% betamannan diet"	4%MN3	liver
+D3T7L_4	IFC_D3_tk7_Lh04	"liver, 4% betamannan diet"	4%MN3	liver
+D3T7L_5	IFC_D3_tk7_Lh05	"liver, 4% betamannan diet"	4%MN3	liver
+D3T7L_6	IFC_D3_tk7_Lh06	"liver, 4% betamannan diet"	4%MN3	liver
+D1T8L_1	IFC_D1_tk8_Lh01	"liver, CTR diet"	CTR	liver
+D1T8L_2	IFC_D1_tk8_Lh02	"liver, CTR diet"	CTR	liver
+D1T8L_3	IFC_D1_tk8_Lh03	"liver, CTR diet"	CTR	liver
+D1T8L_4	IFC_D1_tk8_Lh04	"liver, CTR diet"	CTR	liver
+D1T8L_5	IFC_D1_tk8_Lh05	"liver, CTR diet"	CTR	liver
+D1T8L_6	IFC_D1_tk8_Lh06	"liver, CTR diet"	CTR	liver
+D3T11L_1	IFC_D3_tk11_Lh01	"liver, 4% betamannan diet"	4%MN3	liver
+D3T11L_2	IFC_D3_tk11_Lh02	"liver, 4% betamannan diet"	4%MN3	liver
+D3T11L_3	IFC_D3_tk11_Lh03	"liver, 4% betamannan diet"	4%MN3	liver
+D3T11L_4	IFC_D3_tk11_Lh04	"liver, 4% betamannan diet"	4%MN3	liver
+D3T11L_5	IFC_D3_tk11_Lh05	"liver, 4% betamannan diet"	4%MN3	liver
+D3T11L_6	IFC_D3_tk11_Lh06	"liver, 4% betamannan diet"	4%MN3	liver
+D1T4P_1	IFC_D1_tk4_PCh01	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T4P_2	IFC_D1_tk4_PCh02	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T4P_3	IFC_D1_tk4_PCh03	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T4P_4	IFC_D1_tk4_PCh04	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T4P_5	IFC_D1_tk4_PCh05	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T4P_6	IFC_D1_tk4_PCh06	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D3T5P_1	IFC_D3_tk5_PCh01	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T5P_2	IFC_D3_tk5_PCh02	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T5P_3	IFC_D3_tk5_PCh03	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T5P_4	IFC_D3_tk5_PCh04	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T5P_5	IFC_D3_tk5_PCh05	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T5P_6	IFC_D3_tk5_PCh06	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D1T6P_1	IFC_D1_tk6_PCh01	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T6P_2	IFC_D1_tk6_PCh02	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T6P_3	IFC_D1_tk6_PCh03	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T6P_4	IFC_D1_tk6_PCh04	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T6P_5	IFC_D1_tk6_PCh05	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T6P_6	IFC_D1_tk6_PCh06	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D3T7P_1	IFC_D3_tk7_PCh01	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T7P_2	IFC_D3_tk7_PCh02	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T7P_3	IFC_D3_tk7_PCh03	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T7P_4	IFC_D3_tk7_PCh04	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T7P_5	IFC_D3_tk7_PCh05	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T7P_6	IFC_D3_tk7_PCh06	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D1T8P_1	IFC_D1_tk8_PCh01	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T8P_2	IFC_D1_tk8_PCh02	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T8P_3	IFC_D1_tk8_PCh03	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T8P_4	IFC_D1_tk8_PCh04	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T8P_5	IFC_D1_tk8_PCh05	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D1T8P_6	IFC_D1_tk8_PCh06	"pyloric caeca, CTR diet"	CTR	pyloric_caeca
+D3T11P_1	IFC_D3_tk11_PCh01	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T11P_2	IFC_D3_tk11_PCh02	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T11P_3	IFC_D3_tk11_PCh03	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T11P_4	IFC_D3_tk11_PCh04	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T11P_5	IFC_D3_tk11_PCh05	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D3T11P_6	IFC_D3_tk11_PCh06	"pyloric caeca, 4% betamannan diet"	4%MN3	pyloric_caeca
+D1T4H_1	IFC_D1_tk4_HGh01	"Hindgut, CTR diet"	CTR	hindgut
+D1T4H_2	IFC_D1_tk4_HGh02	"Hindgut, CTR diet"	CTR	hindgut
+D1T4H_3	IFC_D1_tk4_HGh03	"Hindgut, CTR diet"	CTR	hindgut
+D1T4H_4	IFC_D1_tk4_HGh04	"Hindgut, CTR diet"	CTR	hindgut
+D1T4H_5	IFC_D1_tk4_HGh05	"Hindgut, CTR diet"	CTR	hindgut
+D1T4H_6	IFC_D1_tk4_HGh06	"Hindgut, CTR diet"	CTR	hindgut
+D3T5H_1	IFC_D3_tk5_HGh01	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T5H_2	IFC_D3_tk5_HGh02	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T5H_3	IFC_D3_tk5_HGh03	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T5H_4	IFC_D3_tk5_HGh04	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T5H_5	IFC_D3_tk5_HGh05	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T5H_6	IFC_D3_tk5_HGh06	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D1T6H_1	IFC_D1_tk6_HGh01	"Hindgut, CTR diet"	CTR	hindgut
+D1T6H_2	IFC_D1_tk6_HGh02	"Hindgut, CTR diet"	CTR	hindgut
+D1T6H_3	IFC_D1_tk6_HGh03	"Hindgut, CTR diet"	CTR	hindgut
+D1T6H_4	IFC_D1_tk6_HGh04	"Hindgut, CTR diet"	CTR	hindgut
+D1T6H_5	IFC_D1_tk6_HGh05	"Hindgut, CTR diet"	CTR	hindgut
+D1T6H_6	IFC_D1_tk6_HGh06	"Hindgut, CTR diet"	CTR	hindgut
+D3T7H_1	IFC_D3_tk7_HGh01	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T7H_2	IFC_D3_tk7_HGh02	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T7H_3	IFC_D3_tk7_HGh03	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T7H_4	IFC_D3_tk7_HGh04	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T7H_5	IFC_D3_tk7_HGh05	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T7H_6	IFC_D3_tk7_HGh06	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D1T8H_1	IFC_D1_tk8_HGh01	"Hindgut, CTR diet"	CTR	hindgut
+D1T8H_2	IFC_D1_tk8_HGh02	"Hindgut, CTR diet"	CTR	hindgut
+D1T8H_3	IFC_D1_tk8_HGh03	"Hindgut, CTR diet"	CTR	hindgut
+D1T8H_4	IFC_D1_tk8_HGh04	"Hindgut, CTR diet"	CTR	hindgut
+D1T8H_5	IFC_D1_tk8_HGh05	"Hindgut, CTR diet"	CTR	hindgut
+D1T8H_6	IFC_D1_tk8_HGh06	"Hindgut, CTR diet"	CTR	hindgut
+D3T11H_1	IFC_D3_tk11_HGh01	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T11H_2	IFC_D3_tk11_HGh02	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T11H_3	IFC_D3_tk11_HGh03	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T11H_4	IFC_D3_tk11_HGh04	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T11H_5	IFC_D3_tk11_HGh05	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
+D3T11H_6	IFC_D3_tk11_HGh06	"Hindgut, 4% betamannan diet"	4%MN3	hindgut
