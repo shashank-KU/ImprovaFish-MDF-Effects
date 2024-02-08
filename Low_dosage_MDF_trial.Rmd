@@ -5,7 +5,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
   html_document:
     toc: true # table of content true
-    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    toc_depth: 4  # upto three depths of headings (specified by #, ## and ###)
     number_sections: true  ## if you want number sections at each table header
     theme: united  # many options for theme, this one is my favorite.
     highlight: tango  # specifies the syntax highlighting style
@@ -19,7 +19,7 @@ options(tinytex.verbose = TRUE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
-Load all the packages used in the analysis
+Load all the packages
 ```{r message=FALSE, warning=FALSE}
 library("ranacapa")
 library("phyloseq")
@@ -56,6 +56,11 @@ library("microbiomeMarker")
 
 # The overview of the multi-omics
 ![](/Users/shashankgupta/Desktop/ImprovAFish/Final_Figures/Trial.png)
+
+# Sampling for low inclusion of beta-mannnan trial
+A total of 30 salmon were sampled at the first time point (T0), followed by the sampling of 120 salmon individuals (30 for each diet) at each subsequent time point (T1 – 5 weeks after the trial start; T2 – 10 weeks after the trial start; T3 – 15 weeks after the trial start). The distal gut section was dissected using sterile scalpels and tweezers, and approximately 100 mg of gut content was collected from each fish using inoculation loops.
+
+![](https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/Images/Trial_1.png)
 
 # Low inclusion of beta-mannnan trial
 ## Phenotypic scoring
@@ -460,7 +465,7 @@ DT::datatable(genus_df)
 ```
 
 Supplementary Figure
-```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=12, fig.width=12}
+```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=12, fig.width=18}
 FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
 FigureS4_1 <- aggregate_top_taxa(FigureS4_1, level = "Phylum", top = 10)
 getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
@@ -471,7 +476,9 @@ FigureS4_1_plot<- plot_composition(FigureS4_1, sample.sort = "Proteobacteria",ot
 FigureS4_1_plot <- FigureS4_1_plot + 
   theme_bw() + 
   #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa")
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa") +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 
 FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
@@ -485,7 +492,9 @@ FigureS4_2_plot<- plot_composition(FigureS4_2, sample.sort = "Gammaproteobacteri
 FigureS4_2_plot <- FigureS4_2_plot + 
   theme_bw() + 
   #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa")
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa") +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 
 FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
@@ -499,7 +508,9 @@ FigureS4_3_plot<- plot_composition(FigureS4_3, sample.sort = "Other",otu.sort = 
 FigureS4_3_plot <- FigureS4_3_plot + 
   theme_bw() + 
   #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylab("Relative abundance")+ labs(fill = "Taxa")
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylab("Relative abundance")+ labs(fill = "Taxa") +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 
 
@@ -514,7 +525,9 @@ FigureS4_4_plot<- plot_composition(FigureS4_4, sample.sort = "Other",otu.sort = 
 FigureS4_4_plot <- FigureS4_4_plot + 
   theme_bw() + 
   #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa")
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa") +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 
 plot_grid(FigureS4_1_plot, FigureS4_3_plot, FigureS4_2_plot, FigureS4_4_plot, labels = 'AUTO', ncol = 2, rel_widths = c(1,1.1,1,1.1))
