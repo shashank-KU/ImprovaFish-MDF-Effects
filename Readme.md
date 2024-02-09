@@ -65,5 +65,6 @@ Biometric traits, fish welfare indicators, and various tissue samples were exami
 
 Host transcriptomic analysis using RNA extraction, library preparation, and sequencing revealed limited differential expression in response to the high-dose beta-mannan supplementation. The metatranscriptomic analysis of microbial RNA extraction demonstrated notable changes in the expression of genes from the Salmon Microbiome Genome Atlas (SMGA).
 
+Steps used for low dosage of MDF trial mentioned [here](https://shashank-ku.github.io/ImprovaFish-MDF-Effects/High_dosage_MDF_trial.html)
 
 
