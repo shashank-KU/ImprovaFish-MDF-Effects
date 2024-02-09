@@ -1,5 +1,5 @@
 ---
-title: "Low inclusion of beta-mannnan trial"
+title: "High inclusion of beta-mannnan trial"
 author: "Shashank Gupta"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
@@ -58,30 +58,25 @@ library("microbiomeMarker")
 ![](/Users/shashankgupta/Desktop/ImprovAFish/Final_Figures/Trial.png)
 
 # Sampling for low inclusion of beta-mannnan trial
-A total of 30 salmon were sampled at the first time point (T0), followed by the sampling of 120 salmon individuals (30 for each diet) at each subsequent time point (T1 – 5 weeks after the trial start; T2 – 10 weeks after the trial start; T3 – 15 weeks after the trial start). The distal gut section was dissected using sterile scalpels and tweezers, and approximately 100 mg of gut content was collected from each fish using inoculation loops.
-
-![](https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/Images/Trial_1.png)
+![](https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/Images/Trial_2.png)
 
 # Phenotypic scoring
 ```{r}
-annotation_colors <- list(
-  Timepoint = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
-  Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
-
 # Specify the path to your CSV file on GitHub
-csv_file <- "Phenotypic/Metrics_low_dosage.csv"
+csv_file <- "Phenotypic/Metrics_high_dosage.csv"
 csv_url <- paste0("https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/", csv_file)
 
 # Read the CSV file
 fish_data <- read.csv(url(csv_url), row.names = 1)
 
+fish_data$Diet <- factor(fish_data$Diet, levels=c('CTR', '4%MN3'))
+annotation_colors <- list(
+  Diet = c(`CTR`="#e41a1cff", `4%MN3`="#984EA3"))
 
-fish_data$Diet <- factor(fish_data$Diet, levels=c('start', 'CTR', 'MC1', 'MC2', 'MN3'))
-
-plot2 <- ggboxplot(fish_data, x = "Diet", y = "BW",
+plot_2A <- ggboxplot(fish_data, x = "Diet", y = "Body.weight",
           color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
   #stat_compare_means(comparisons = my_comparisons, hide.ns = F) +
-  #stat_compare_means() +
+  stat_compare_means(label.y = 370) +
   ggplot2::geom_jitter(
     mapping = aes_string(fill="Diet"),
     position = ggplot2::position_jitter(seed=123), 
@@ -90,11 +85,10 @@ plot2 <- ggboxplot(fish_data, x = "Diet", y = "BW",
     size = 2,
     alpha = 0.8
   ) +
-  theme_bw() +  ylab("Body weigth") +
+  theme_bw() +   ylab("Body weight") +
   theme(legend.position="none",axis.title.x=element_blank()) +
   scale_fill_manual(values =  annotation_colors$Diet) + 
-  scale_colour_manual( values = annotation_colors$Diet) +
- facet_grid(. ~ Timepoint, scales="free_x", space = "free_x") 
+  scale_colour_manual( values = annotation_colors$Diet)
 ```
 
 ```{r, warning=FALSE}
@@ -109,10 +103,10 @@ library(dplyr)
 library(tidyr)
 
 fish_data %>%
-  complete(Timepoint, Diet, fill = list(BW = NA, Length = NA, GW = NA, CF = NA, HSI = NA, CSI = NA)) %>%
-  group_by(Timepoint, Diet) %>%
+  complete(Diet, fill = list(Body.weight = NA, Length = NA, GW = NA, CF = NA, HSI = NA, CSI = NA, Heart_W= NA,Liver_W = NA)) %>%
+  group_by(Diet) %>%
   summarise(
-    Mean_BW = mean(BW, na.rm = TRUE),
+    Mean_BW = mean(Body.weight, na.rm = TRUE),
     Mean_Length = mean(Length, na.rm = TRUE),
     Mean_GW = mean(GW, na.rm = TRUE),
     Mean_CF = mean(CF, na.rm = TRUE),
@@ -120,7 +114,7 @@ fish_data %>%
     Mean_CSI = mean(CSI, na.rm = TRUE),
     Mean_Heart_W = mean(Heart_W, na.rm = TRUE),
     Mean_Liver_W = mean(Liver_W, na.rm = TRUE),
-    SEM_BW = sd(BW, na.rm = TRUE) / sqrt(sum(!is.na(BW))),
+    SEM_BW = sd(Body.weight, na.rm = TRUE) / sqrt(sum(!is.na(Body.weight))),
     SEM_Length = sd(Length, na.rm = TRUE) / sqrt(sum(!is.na(Length))),
     SEM_GW = sd(GW, na.rm = TRUE) / sqrt(sum(!is.na(GW))),
     SEM_CF = sd(CF, na.rm = TRUE) / sqrt(sum(!is.na(CF))),
@@ -136,30 +130,27 @@ fish_data %>%
     across(starts_with("Mean_"), ~paste(., "±", get(paste0("SEM_", sub("Mean_", "", cur_column())))))
   ) %>%
   filter(complete.cases(.)) %>%
-  select(Timepoint, Diet, starts_with("Mean_"), -starts_with("SEM_")) %>%
-  rename_with(~sub("Mean_", "", .), starts_with("Mean_")) %>% 
-  t() %>%
-  DT::datatable() 
-
-
-
+  select(Diet, starts_with("Mean_"), -starts_with("SEM_")) %>%
+  rename_with(~sub("Mean_", "", .), starts_with("Mean_")) %>%
+  DT::datatable()
 ```
-
-
 
 # Metagenomics
 Import data and clean the taxonomy
-```{r, warning=FALSE, message=FALSE}
+```{r warning=FALSE, message=FALSE}
+# Load data
 base_url <- "https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/"
 # Specify the path to your RDS file on GitHub
-rds_file <- "Metagenomics/low_dosage_trial/metagenomics_low_MDF.rdata"
+rds_file <- "Metagenomics/high_dosage_trial/metagenomics_high_MDF.rdata"
 rds_url <- paste0(base_url, rds_file)
 # Read the RDS file
 all <- readRDS(url(rds_url))
+
 tax <- data.frame(tax_table(all), stringsAsFactors = FALSE)
 tax <- tax[,1:7] # No info in col 8-15
 # Set informative colnames
 colnames(tax) <- c("Kingdom", "Phylum","Class","Order","Family","Genus", "Species")
+library(stringr)
 tax.clean <- data.frame(row.names = row.names(tax),
                         Kingdom = str_replace(tax[,1], "d__",""), 
                         Phylum = str_replace(tax[,2], "p__",""),
@@ -170,38 +161,13 @@ tax.clean <- data.frame(row.names = row.names(tax),
                         Species = str_replace(tax[,7], "s__",""), 
                         stringsAsFactors = FALSE)
 tax.clean[is.na(tax.clean)] <- ""
-# - Clean rank by rank
-# Kingdom - Remove the unassigned completely
-# Phylum
-# Class
-# Remove extra info about origin from some bacteria
-# Remove all fields that contain "uncultured", "Unknown" or "Ambigious"
-bad <- c("Ambiguous_taxa","uncultured", "Subgroup_21")
-tax.clean[tax.clean$Class %in% bad,3:7] <- ""
-
-# Order
-bad <- c("0319-6G20","1-20","11-24", "ADurb.Bin180","D8A-2", "Group_1.1c", "JGI_0000069-P22","Marine_Group_II",
-         "Pla3_lineage","Run-SP154",
-         "Ambiguous_taxa", "uncultured", "UBA10353_marine_group",
-         "Subgroup_17", "SAR86_clade", "SAR11_clade", "SAR202_clade")
-tax.clean[tax.clean$Order %in% bad,4:7] <- ""
-
-# Family
-bad <- c("Ambiguous_taxa","11-24","67-14", "uncultured", "SAR116_clade", "Run-SP154", 
-         "Marine_Group_II", "env.OPS_17", "SAR116_clade", "S085", "S-70", "NS9_marine_group", "Mitochondria")
-tax.clean[tax.clean$Family %in% bad,5:7] <- ""
-
-# Genus
-bad <- c("Ambiguous_taxa","Unknown_Family","uncultured","Subgroup_10", "1174-901-12", "67-14")
-tax.clean[tax.clean$Genus %in% bad,6:7] <- ""
-
-# Species
-bad <- c("Ambiguous_taxa","marine_metagenome","low_GC","wastewater_metagenome","unidentified", 
-         "uncultured_synthetic", "uncultured_organism")
-tax.clean[tax.clean$Species %in% bad,6:7] <- ""
-
-#tax.clean[grepl("uncultured", tax.clean$Species),"Species"] <- ""
-#tax.clean[grepl("unidentified", tax.clean$Species),"Species"] <- ""
+tax.clean[tax.clean$Phylum %in% c("uncultured"),2:8] <- ""
+out <- c("uncultured")
+tax.clean[tax.clean$Class %in% out, 3:8] <- ""
+tax.clean[tax.clean$Order %in% out, 4:8] <- ""
+tax.clean[tax.clean$Family %in% out, 5:8] <- ""
+tax.clean[tax.clean$Genus %in% out, 6:8] <- ""
+tax.clean[tax.clean$Species %in% out, 7:8] <- ""
 
 # Remove remove ".", change "-" and " " to "_"
 for (i in 1:ncol(tax.clean)){
@@ -235,13 +201,7 @@ for (i in 1:nrow(tax.clean)){
     tax.clean$Species[i] <- paste("Genus_",tax.clean$Genus[i], sep = "_")
   }
 }
-
-rm(bad, class, family, i, kingdom,new,order,phylum,uncul)
-
 tax_table(all) <- as.matrix(tax.clean)
-all
-
-
 all.clean <- subset_taxa(all,
   Kingdom != "Unassigned" &
   Kingdom != "Archaea" &
@@ -250,140 +210,88 @@ all.clean <- subset_taxa(all,
   Order != "Chloroplast" &
   Genus != "Ralstonia"
 ) %>%
+prune_taxa(taxa_sums(.) > 0, .) %>%
+subset_samples(diet != "test") %>%
+prune_taxa(taxa_sums(.) > 0, .) %>%
+subset_samples(New_Diet != "1%_betamannan") %>%
+prune_taxa(taxa_sums(.) > 0, .) %>%
+subset_samples(sampleType != "feed") %>%
 prune_taxa(taxa_sums(.) > 0, .)
+
+sample_data(all.clean)$New_Diet <- ifelse(sample_data(all.clean)$New_Diet == "Control", "CTR", ifelse(sample_data(all.clean)$New_Diet == "4%_betamannan", "4%MN3", sample_data(all.clean)$New_Diet))
+sample_data(all.clean)$New_Diet <- factor(sample_data(all.clean)$New_Diet, levels=c('CTR', '4%MN3'))
+
 all.clean
-```
-
-Rarefaction plot
-```{r eecho=T, results='hide'}
-sample_data(all.clean)$New_Diet <- factor(sample_data(all.clean)$New_Diet, levels=c('ext-ctrl', 'CTR', 'MC1', 'MC2', 'MN3'))
-
-annotation_colors <- list(
-  samplingTime = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
-  New_Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
-
-p <- ggrare(all.clean, step = 1000, 
-            color = "samplingTime", 
-            se = F,
-            parallel = TRUE,
-            plot = FALSE)
-cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
-
-p <- p + theme_bw() + 
-  scale_fill_manual(values =annotation_colors$samplingTime) +
-  scale_colour_manual( values = annotation_colors$samplingTime) +
-  facet_wrap(~New_Diet) +
-    guides(color = guide_legend(title = "Life stage"))
-
-```
-
-Alpha and Beta diversity
-```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=14, fig.height=10}
-shannon.div <- estimate_richness(all.clean, measures = c("Shannon", "Observed"))
-sampledata1<- data.frame(sample_data(all.clean))
-row.names(shannon.div) <- gsub("[.]","-", row.names(shannon.div))
-sampleData <- merge(sampledata1, shannon.div, by = 0 , all = TRUE)
-
-my_comparisons <- list( c("ext-ctrl", "MC1"), c("ext-ctrl", "MC2"), c("ext-ctrl", "MN3"), c("CTR", "MC1"), c("CTR", "MC2"), c("CTR", "MN3"))
-
-
-p1 <- ggboxplot(sampleData, x = "New_Diet", y = "Observed",
-          color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
-  stat_compare_means(comparisons = my_comparisons) +
-  stat_compare_means(label.y = 350) +
-  ggplot2::geom_jitter(
-    mapping = aes_string(fill="New_Diet"),
-    position = ggplot2::position_jitter(seed=123), 
-    shape = 21,
-    color = "black",
-    size = 2,
-    alpha = 0.8
-  ) +
-  theme_bw() +  
-  theme(legend.position="none",axis.title.x=element_blank()) +
-  scale_fill_manual(values =  annotation_colors$New_Diet) + 
-  scale_colour_manual( values = annotation_colors$New_Diet)   + 
-  labs(y= "Observed richness (ASVs)") 
-
-set.seed(1)
-PCoA_bray <- ordinate(physeq = all.clean, method = "PCoA", distance = "bray")
-PCoA_bray_plot<- plot_ordination(
-  physeq = all.clean, 
-  ordination = PCoA_bray, 
-  color = "New_Diet"
-) + 
-  geom_point(aes(fill ="New_Diet" ),  size =2) + 
-  geom_point(shape = 1, size = 2,colour = "black") +
-  theme_bw() + 
-  xlab("PCoA 1 [18.2 %]") + ylab("PCoA 2 [8.6 %]") + 
-  stat_ellipse() + 
-  scale_fill_manual(values =  annotation_colors$New_Diet) + 
-  scale_colour_manual( values = annotation_colors$New_Diet) +
-  guides(color = guide_legend(title = "Diet")) 
-
-
-
-bottom_row <- plot_grid(p1, PCoA_bray_plot, labels = c('B', 'C'), align = 'h', rel_widths = c(1, 1.3))
-```
-
-Supplementary Fig. S4
-```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=14, fig.height=10}
-plot_grid(p, bottom_row, labels = c('A', ''), ncol = 1, rel_heights = c(1, 1.2))
-```
-
-
-Computes the Bray-Curtis distance between all the samples in the dataset "all.clean" and tests for differences between samples in the variable "New_Diet" using the Adonis2 function. The Adonis2 function was run with 9999 permutations.
-```{r}
-sampledf <- data.frame(sample_data(all.clean))
-bcdist <- phyloseq::distance(all.clean, method="bray",normalized=TRUE) 
-adonis2(bcdist ~ New_Diet, 
-        data = sampledf, permutations = 9999)
-
-```
-
-Contamination removal
-```{r, message=FALSE}
-df <- as.data.frame(sample_data(all.clean)) # Put sample_data into a ggplot-friendly data.frame
-df$Sample_or_Control <- ifelse( df$New_Diet  %in% c("ext-ctrl"), "Control_Sample", "True_Sample")
-sample_data(all.clean) <- df
-df$LibrarySize <- sample_sums(all.clean)
-df <- df[order(df$LibrarySize),]
-df$Index <- seq(nrow(df))
-sample_data(all.clean)$is.neg <- sample_data(all.clean)$Sample_or_Control == "Control_Sample"
-contamdf.prev05 <- isContaminant(all.clean, method="prevalence", neg="is.neg", threshold=0.5)
-paste("The number of contamination found is",table(contamdf.prev05$contaminant)[2])
-all.noncontam <- prune_taxa(!contamdf.prev05$contaminant, all.clean)
-
-psdata <- subset_samples(all.noncontam, Sample_or_Control=="True_Sample")
-psdata <- prune_taxa(taxa_sums(psdata) > 0, psdata)
-psdata
-```
-
-Inspect the number of reads per sample and compare to rarefaction curves
-```{r}
-psdata.p <- prune_taxa(taxa_sums(psdata) >0, psdata)
+tax_table(all.clean) <- tax_table(all.clean)[, c(1:7)]
+sample_data(all.clean)$Group <- paste(sample_data(all.clean)$sampleType,sample_data(all.clean)$New_Diet,sep = "_")
+psdata.p <- prune_taxa(taxa_sums(all.clean) >0, all.clean)
 psdata.p
 ```
 
+Rarefaction plot- This R code is using the "ggrare" function to create a rarefaction plot from the data in the "all.clean" object.
+```{r fig2, fig.height = 4, fig.width = 12, fig.align = "center"}
+annotation_colors <- list(
+  #samplingTime = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
+  New_Diet = c(`CTR`="#e41a1cff", `4%MN3`="#984EA3"))
+
+
+p <- ggrare(all.clean, step = 1000, 
+            color = "New_Diet", 
+            se = F,
+            parallel = TRUE,
+            plot = F) 
+p + theme_bw() + 
+  scale_fill_manual(values =annotation_colors$New_Diet) +
+  scale_colour_manual( values = annotation_colors$New_Diet) 
+
+```
 
 Taxonomic classification- Phylum level taxonomic distribution. Bars report the mean abundance for each individual sample. 
 ```{r warning=FALSE, message=FALSE, fig.align='center'}
-psdata.r<- transform_sample_counts(psdata.p, function(x) x / sum(x) )
-Final.RNA <- aggregate_rare(psdata.r, level = "Phylum", detection = 1/100, prevalence = 20/100)
+
+HG <- subset_samples(all.clean, sampleType == "Hindgut")
+HG <- prune_taxa(taxa_sums(HG) > 0, HG)
+
+PC <- subset_samples(all.clean, sampleType == "Pyloric_caeca")
+PC <- prune_taxa(taxa_sums(PC) > 0, PC)
+
+
+HG_T<- transform_sample_counts(HG, function(x) x / sum(x) )
+HG.Final.RNA <- aggregate_rare(HG_T, level = "Phylum", detection = 1/100, prevalence = 10/100)
 getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
 PhylaPalette = getPalette(10)
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
 
-Final.RNA_phylum_plot<- plot_composition(Final.RNA, sample.sort = "Proteobacteria",otu.sort = "abundance", verbose = TRUE)
-Final.RNA_phylum_plot <- Final.RNA_phylum_plot + 
+HG.Final.RNA_phylum_plot<- plot_composition(HG.Final.RNA, sample.sort = "Proteobacteria",otu.sort = "abundance", verbose = TRUE, group_by = "New_Diet")
+HG.Final.RNA_phylum_plot <- HG.Final.RNA_phylum_plot + 
   theme_bw() + 
-  theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = PhylaPalette)
-Final.RNA_phylum_plot
+  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+PC_T<- transform_sample_counts(PC, function(x) x / sum(x) )
+
+
+PC.Final.RNA <- aggregate_rare(PC_T, level = "Phylum", detection = 1/100, prevalence = 10/100)
+getPalette = colorRampPalette(brewer.pal(16, "Dark2")) 
+PhylaPalette = getPalette(16)
+
+cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
+
+
+PC.Final.RNA_phylum_plot<- plot_composition(PC.Final.RNA, sample.sort = "Proteobacteria",otu.sort = "abundance", verbose = TRUE, group_by = "New_Diet")
+PC.Final.RNA_phylum_plot <- PC.Final.RNA_phylum_plot + 
+  theme_bw() + 
+  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+plot_grid(HG.Final.RNA_phylum_plot, PC.Final.RNA_phylum_plot, ncol = 1, align = "hv")
+
 ```
 
 ```{r, message=FALSE}
 #Bacterial Community Composition for Manuscript
-Final.seq.melt.RNA <- psmelt(tax_glom(psdata.r, "Species"))
+Final.seq.melt.RNA <- psmelt(tax_glom(all.clean, "Species"))
 tax_ranks <- c("Phylum", "Class", "Order", "Family", "Genus", "Species")
 
 for (rank in tax_ranks) {
@@ -392,169 +300,27 @@ for (rank in tax_ranks) {
 }
 ```
 
-```{r}
-paste("number of unique Phylum is", table(grepl("Kingdom", unique(Final.seq.melt.RNA$Phylum)))[1])
-paste("number of unique Class is", table(grepl("Kingdom|Phylum", unique(Final.seq.melt.RNA$Class)))[1])
-paste("number of unique Order is", table(grepl("Kingdom|Class|Phylum", unique(Final.seq.melt.RNA$Order)))[1])
-paste("number of unique Family is", table(grepl("Kingdom|Order|Class|Phylum", unique(Final.seq.melt.RNA$Family)))[1])
-paste("number of unique Genus is", table(grepl("Kingdom|Family|Order|Class|Phylum", unique(Final.seq.melt.RNA$Genus)))[1])
-paste("number of unique Species is", table(grepl("Kingdom|Family|Order|Class|Phylum|Genus", unique(Final.seq.melt.RNA$Species)))[1])
-```
+Alpha diversity- Alpha diversity is a measure of the diversity of species within a given area or sample. It can be measured in two different ways: Shannon diversity, which takes into account both the richness and evenness of species in a given sample, or observed richness, which simply counts the total number of species present. Shannon diversity is often used to compare the diversity of different samples, whereas observed richness can be used to compare the diversity of different areas.
 
-```{r, echo=FALSE}
-aggregate_top_taxa <- function (x, top, level) {
+```{r warning=FALSE, message=FALSE}
+# Estimate richness of all.clean
+shannon.div <- estimate_richness(all.clean, measures = c("Shannon", "Observed"))
 
-        .Deprecated("aggregate_rare",
-        "The microbiome::aggregate_top_taxa function is deprecated.")
+# Get sample data
+sampledata1<- data.frame(sample_data(all.clean))
 
-        x <- aggregate_taxa(x, level)
-
-        tops <- top_taxa(x, top)
-        tax <- tax_table(x)
-
-        inds <- which(!rownames(tax) %in% tops)
-
-        tax[inds, level] <- "Other"
-
-        tax_table(x) <- tax
-
-        tt <- tax_table(x)[, level]
-        tax_table(x) <- tax_table(tt)
-
-        aggregate_taxa(x, level)
-
-}
-```
-
-Supplementary table for the manuscript
-```{r, message=FALSE, warning=FALSE}
-Phylum_df <- summaryBy(Abundance~Phylum, data=Final.seq.melt.RNA, FUN=sum)
-Phylum_df$Percent <- round(Phylum_df$Abundance.sum/sum(Phylum_df$Abundance.sum)*100, 4)
-Phylum_df <- plyr::arrange(Phylum_df, plyr::desc(Percent))
-Phylum_df$PercentageRound <- round(Phylum_df$Percent, digits = 2)
-DT::datatable(Phylum_df)
-
-class_df <- summaryBy(Abundance~Class, data=Final.seq.melt.RNA, FUN=sum)
-class_df$Percent <- round(class_df$Abundance.sum/sum(class_df$Abundance.sum)*100, 4)
-class_df <- plyr::arrange(class_df, plyr::desc(Percent))
-class_df$PercentageRound <- round(class_df$Percent, digits = 2)
-DT::datatable(class_df)
-
-
-order_df <- summaryBy(Abundance~Order, data=Final.seq.melt.RNA, FUN=sum)
-order_df$Percent <- round(order_df$Abundance.sum/sum(order_df$Abundance.sum)*100, 4)
-order_df <- plyr::arrange(order_df, plyr::desc(Percent))
-order_df$PercentageRound <- round(order_df$Percent, digits = 2)
-DT::datatable(order_df)
-
-
-family_df <- summaryBy(Abundance~Family, data=Final.seq.melt.RNA, FUN=sum)
-family_df$Percent <- round(family_df$Abundance.sum/sum(family_df$Abundance.sum)*100, 4)
-family_df <- plyr::arrange(family_df, plyr::desc(Percent))
-family_df$PercentageRound <- round(family_df$Percent, digits = 2)
-DT::datatable(family_df)
-
-
-
-genus_df <- summaryBy(Abundance~Genus, data=Final.seq.melt.RNA, FUN=sum)
-genus_df$Percent <- round(genus_df$Abundance.sum/sum(genus_df$Abundance.sum)*100, 4)
-genus_df <- plyr::arrange(genus_df, plyr::desc(Percent))
-genus_df$Round <- round(genus_df$Percent, digits = 2)
-DT::datatable(genus_df)
-```
-
-Supplementary Figure
-```{r, message=FALSE, warning=FALSE, fig.align='center', fig.height=12, fig.width=18}
-FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
-FigureS4_1 <- aggregate_top_taxa(FigureS4_1, level = "Phylum", top = 10)
-getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
-PhylaPalette = getPalette(10)
-cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
-
-FigureS4_1_plot<- plot_composition(FigureS4_1, sample.sort = "Proteobacteria",otu.sort = "abundance", verbose = TRUE)
-FigureS4_1_plot <- FigureS4_1_plot + 
-  theme_bw() + 
-  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa") +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-
-FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
-
-FigureS4_2 <- aggregate_top_taxa(FigureS4_1, level = "Class",  top = 10)
-getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
-PhylaPalette = getPalette(10)
-cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
-
-FigureS4_2_plot<- plot_composition(FigureS4_2, sample.sort = "Gammaproteobacteria",otu.sort = "abundance", verbose = TRUE)
-FigureS4_2_plot <- FigureS4_2_plot + 
-  theme_bw() + 
-  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa") +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-
-FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
-
-FigureS4_3 <- aggregate_top_taxa(FigureS4_1, level = "Family", top = 10)
-getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
-PhylaPalette = getPalette(10)
-cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
-
-FigureS4_3_plot<- plot_composition(FigureS4_3, sample.sort = "Other",otu.sort = "abundance", verbose = TRUE)
-FigureS4_3_plot <- FigureS4_3_plot + 
-  theme_bw() + 
-  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylab("Relative abundance")+ labs(fill = "Taxa") +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-
-
-FigureS4_1 <- transform_sample_counts(psdata.r, function(x) x / sum(x) )
-
-FigureS4_4 <- aggregate_top_taxa(FigureS4_1, level = "Genus", top = 10)
-getPalette = colorRampPalette(brewer.pal(10, "Dark2")) 
-PhylaPalette = getPalette(10)
-cols  <- c(brewer.pal(8,"Set1"), brewer.pal(7,"Dark2"),brewer.pal(7,"Set2"),brewer.pal(12,"Set3"),brewer.pal(7,"Accent"),brewer.pal(12,"Paired"),"gray")
-
-FigureS4_4_plot<- plot_composition(FigureS4_4, sample.sort = "Other",otu.sort = "abundance", verbose = TRUE)
-FigureS4_4_plot <- FigureS4_4_plot + 
-  theme_bw() + 
-  #theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  scale_fill_manual(values = cols) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ ylab("Relative abundance")+ labs(fill = "Taxa") +
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-
-plot_grid(FigureS4_1_plot, FigureS4_3_plot, FigureS4_2_plot, FigureS4_4_plot, labels = 'AUTO', ncol = 2, rel_widths = c(1,1.1,1,1.1))
-
-```
-
-Alpha and Beta diversity
-```{r, message=FALSE, warning=FALSE}
-shannon.div <- estimate_richness(psdata.p, measures = c("Shannon", "Observed"))
-sampledata1<- data.frame(sample_data(psdata.p))
+# Rename row names
+row.names(shannon.div) <- gsub("X","", row.names(shannon.div))
 row.names(shannon.div) <- gsub("[.]","-", row.names(shannon.div))
+
+# Merge data
 sampleData <- merge(sampledata1, shannon.div, by = 0 , all = TRUE)
-sampleData <- sampleData %>%
-  mutate(New_Diet = case_when(
-    samplingTime == "T0" ~ "start",
-    TRUE ~ New_Diet
-  ))
-sampleData$New_Diet <- factor(sampleData$New_Diet, levels=c( 'CTR', 'MC1', 'MC2', 'MN3'))
-sampleData$samplingTime <- factor(sampleData$samplingTime, levels=c('T0', 'T1', 'T2', 'T3'))
 
-my_comparisons <- list( c("CTR", "MC1"), c("CTR", "MC2"), c("CTR", "MN3"), 
-                        c("MC1", "MC2"), c("MC1", "MN3"), c("MC2", "MN3") )
-
-
-plot1 <- ggboxplot(sampleData, x = "New_Diet", y = "Shannon",
+# Create Shannon Plot
+plot11 <- ggboxplot(sampleData, x = "New_Diet", y = "Shannon",
           color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
-  geom_pwc(comparisons = my_comparisons, hide.ns = TRUE) +
-  #stat_compare_means(label.y = 5) +
+ # stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
+  stat_compare_means(label.y = 4.3) +
   ggplot2::geom_jitter(
     mapping = aes_string(fill="New_Diet"),
     position = ggplot2::position_jitter(seed=123), 
@@ -563,91 +329,255 @@ plot1 <- ggboxplot(sampleData, x = "New_Diet", y = "Shannon",
     size = 2,
     alpha = 0.8
   ) +
-  theme_bw() +  scale_y_continuous("Shannon index") +
+  theme_bw() +  labs(y= "Shannon index") +
   theme(legend.position="none",axis.title.x=element_blank()) +
-  scale_fill_manual(values =  annotation_colors$New_Diet) + 
+  scale_fill_manual(values = c( "#E41A1C", "#984EA3")) + 
+  scale_colour_manual( values = c( "#E41A1C", "#984EA3")) +
+  facet_wrap(. ~ sampleType, ncol = 2) +       
+  theme(panel.spacing = unit(1, "cm"))
+```
+
+Beta diversity- Beta diversity is a term used to refer to the differences in species composition between two different sites or habitats. It is often used to measure how different species are distributed across a landscape. The concept of beta diversity was first proposed by ecologist Robert H. Whittaker in 1960. The measure is used to quantify the variation in species composition between two different sites, such as an island and the mainland. The most commonly used measure for beta diversity is the Bray-Curtis index, which looks at the ratio of shared species between two sites. This index is used to measure the differences in species composition between areas and to identify the importance of certain areas in terms of species diversity.
+```{r warning=FALSE, message=FALSE, fig.align='center'}
+# Calculate PCoA on Bray distance
+PCoA_bray_HG <- ordinate(physeq = HG, method = "PCoA", distance = "bray")
+
+# Plot PCoA on Bray distance
+PCoA_bray_HG_plot <- plot_ordination(
+  physeq = HG, 
+  ordination = PCoA_bray_HG, 
+  color = "New_Diet"
+) + 
+  geom_point(shape = 19, alpha=0.7) + 
+  theme_bw() + ggtitle("Hindgut: Microbiome") +
+    theme(plot.title = element_text(hjust = 0.5))  + 
+  xlab("PCoA 1 [47 %]") + ylab("PCoA 2 [9.3 %]") + 
+  stat_ellipse() + scale_fill_manual(values = annotation_colors$New_Diet) + 
+  scale_colour_manual( values = annotation_colors$New_Diet)+
+  guides(color = guide_legend(title = "Diet")) 
+
+# Calculate PCoA on Bray distance
+PCoA_bray_PC <- ordinate(physeq = PC, method = "PCoA", distance = "bray")
+
+# Plot PCoA on Bray distance
+PCoA_bray_PC_plot <- plot_ordination(
+  physeq = PC, 
+  ordination = PCoA_bray_PC, 
+  color = "New_Diet"
+) + 
+  geom_point(shape = 19, alpha=0.7) + 
+  theme_bw() + ggtitle("Pyloric caeca: Microbiome") +
+    theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab("PCoA 1 [29.2 %]") + ylab("PCoA 2 [15.4 %]") + 
+  stat_ellipse() + scale_fill_manual(values = annotation_colors$New_Diet) + 
   scale_colour_manual( values = annotation_colors$New_Diet) +
- facet_grid(. ~ samplingTime, scales="free_x", space = "free_x") 
-
-my_comparisons <- list(c("T0", "T3"), c("T1", "T3"), c("T2", "T3"))
-
-# Assuming your dataframe is named sampleData
-sampleData$New_Diet[sampleData$New_Diet == "start"] <- "CTR"
+  guides(color = guide_legend(title = "Diet")) 
 
 
+# Grid plot of PCoA plots
+up_row <- plot_grid(plot_2A, plot11, labels = c('B', 'C'), align = 'h', nrow = 1, rel_widths = c(0.5,1))
+bottom_row <- plot_grid(PCoA_bray_HG_plot, PCoA_bray_PC_plot, labels = c('E', 'F'), align = 'h', ncol = 1)
+```
 
-plot2_x <- ggboxplot(sampleData, x = "samplingTime", y = "Shannon",
-          color = "black", palette = "jco", legend = "none", outlier.shape = NA)+ 
-    stat_compare_means(comparisons = my_comparisons) +
-    #stat_compare_means(label.y = 5) +
-    ggplot2::geom_jitter(
-        mapping = aes_string(fill="samplingTime"),
-        position = ggplot2::position_jitter(seed=123), 
-        shape = 21,
-        color = "black",
-        size = 2,
-        alpha = 0.8
-    ) +
-    theme_bw() +  
-    theme(legend.position="none",axis.title.x=element_blank()) +
-    scale_fill_manual(values =  annotation_colors$samplingTime) + 
-    scale_colour_manual( values = annotation_colors$samplingTime) +
-    facet_grid(. ~ New_Diet) + 
-    labs(y= "Shannon index") + ylim(c(1.5, 5.2))
+
+```{r warning=FALSE, message=FALSE, fig.align='center'}
+#Bacterial Community Composition for Manuscript
+Final.seq.melt.RNA <- psmelt(tax_glom(HG, "Species"))
+tax_ranks <- c("Phylum", "Class", "Order", "Family", "Genus", "Species")
+
+for (rank in tax_ranks) {
+  n_unique <- length(unique(Final.seq.melt.RNA[[rank]]))
+  message(paste(rank, ": ", n_unique, sep = ""))
+}
 
 ```
 
 
-```{r, message=FALSE, warning=FALSE, fig.align='center', fig.width=14, fig.height=10}
-set.seed(1)
-PCoA_bray <- ordinate(physeq = psdata.p, method = "PCoA", distance = "bray")
-plot3 <- plot_ordination(
-  physeq = psdata.p, 
-  ordination = PCoA_bray, 
-  color = "samplingTime"
+
+```{r warning=FALSE, message=FALSE, fig.align='center'}
+#Bacterial Community Composition for Manuscript
+Final.seq.melt.RNA.PC <- psmelt(tax_glom(PC, "Species"))
+tax_ranks <- c("Phylum", "Class", "Order", "Family", "Genus", "Species")
+
+for (rank in tax_ranks) {
+  n_unique <- length(unique(Final.seq.melt.RNA.PC[[rank]]))
+  message(paste(rank, ": ", n_unique, sep = ""))
+}
+
+```
+
+
+
+```{r warning=FALSE, message=F, fig.align='center'}
+library(doBy)
+Final.seq.melt.RNA.PC <- psmelt(tax_glom(PC, "Species"))
+table(grepl("Kingdom", unique(Final.seq.melt.RNA.PC$Phylum)))
+table(grepl("Phylum", unique(Final.seq.melt.RNA.PC$Class)))
+table(grepl("Class|Phylum", unique(Final.seq.melt.RNA.PC$Order)))
+table(grepl("Order|Class|Phylum", unique(Final.seq.melt.RNA.PC$Family)))
+table(grepl("Family|Order|Class|Phylum", unique(Final.seq.melt.RNA.PC$Genus)))
+table(grepl("Family|Order|Class|Phylum|Genus", unique(Final.seq.melt.RNA.PC$Species)))
+
+Phylum_df <- summaryBy(Abundance~Phylum, data=Final.seq.melt.RNA.PC, FUN=sum)
+Phylum_df$Percent <- round(Phylum_df$Abundance.sum/sum(Phylum_df$Abundance.sum)*100, 4)
+Phylum_df <- plyr::arrange(Phylum_df, plyr::desc(Percent))
+Phylum_df$PercentageRound <- round(Phylum_df$Percent, digits = 2)
+DT::datatable(Phylum_df)
+
+class_df <- summaryBy(Abundance~Phylum+Class, data=Final.seq.melt.RNA.PC, FUN=sum)
+class_df$Percent <- round(class_df$Abundance.sum/sum(class_df$Abundance.sum)*100, 4)
+class_df <- plyr::arrange(class_df, plyr::desc(Percent))
+class_df$Round <- round(class_df$Percent, digits = 2)
+DT::datatable(class_df)
+
+genus_df <- summaryBy(Abundance~Genus, data=Final.seq.melt.RNA.PC, FUN=sum)
+genus_df$Percent <- round(genus_df$Abundance.sum/sum(genus_df$Abundance.sum)*100, 4)
+genus_df <- plyr::arrange(genus_df, plyr::desc(Percent))
+genus_df$Round <- round(genus_df$Percent, digits = 2)
+
+DT::datatable(genus_df)
+
+```
+
+
+```{r warning=FALSE, message=F, fig.align='center'}
+library(doBy)
+Final.seq.melt.RNA.HG <- psmelt(tax_glom(HG, "Species"))
+table(grepl("Kingdom", unique(Final.seq.melt.RNA.HG$Phylum)))
+table(grepl("Phylum", unique(Final.seq.melt.RNA.HG$Class)))
+table(grepl("Class|Phylum", unique(Final.seq.melt.RNA.HG$Order)))
+table(grepl("Order|Class|Phylum", unique(Final.seq.melt.RNA.HG$Family)))
+table(grepl("Family|Order|Class|Phylum", unique(Final.seq.melt.RNA.HG$Genus)))
+table(grepl("Family|Order|Class|Phylum|Genus", unique(Final.seq.melt.RNA.HG$Species)))
+
+Phylum_df <- summaryBy(Abundance~Phylum, data=Final.seq.melt.RNA.HG, FUN=sum)
+Phylum_df$Percent <- round(Phylum_df$Abundance.sum/sum(Phylum_df$Abundance.sum)*100, 4)
+Phylum_df <- plyr::arrange(Phylum_df, plyr::desc(Percent))
+Phylum_df$PercentageRound <- round(Phylum_df$Percent, digits = 2)
+DT::datatable(Phylum_df)
+
+class_df <- summaryBy(Abundance~Phylum+Class, data=Final.seq.melt.RNA.HG, FUN=sum)
+class_df$Percent <- round(class_df$Abundance.sum/sum(class_df$Abundance.sum)*100, 4)
+class_df <- plyr::arrange(class_df, plyr::desc(Percent))
+class_df$Round <- round(class_df$Percent, digits = 2)
+DT::datatable(class_df)
+
+
+
+genus_df <- summaryBy(Abundance~Genus, data=Final.seq.melt.RNA.HG, FUN=sum)
+genus_df$Percent <- round(genus_df$Abundance.sum/sum(genus_df$Abundance.sum)*100, 4)
+genus_df <- plyr::arrange(genus_df, plyr::desc(Percent))
+genus_df$Round <- round(genus_df$Percent, digits = 2)
+
+DT::datatable(genus_df)
+
+```
+
+
+```{r}
+sampledf_HG <- data.frame(sample_data(HG))
+bcdist_HG <- phyloseq::distance(HG, method="bray", normalized=TRUE)
+adonis2(bcdist_HG ~ New_Diet, data = sampledf_HG, permutations = 9999)
+
+
+sampledf_PC <- data.frame(sample_data(PC))
+bcdist_PC <- phyloseq::distance(PC, method="bray",normalized=TRUE)
+adonis2(bcdist_PC ~ New_Diet, data = sampledf_PC, permutations = 9999)
+```
+
+Hind gut and Pyloric caeca comparison based on control samples
+```{r warning=FALSE, message=FALSE, fig.align='center'}
+HG_PC <- subset_samples(all.clean, New_Diet != "4%MN3")
+HG_PC <- prune_taxa(taxa_sums(HG_PC) > 0, HG_PC)
+
+
+
+# Estimate richness of all.clean
+shannon.div <- estimate_richness(HG_PC, measures = c("Shannon", "Observed","Simpson" ))
+
+# Get sample data
+sampledata1<- data.frame(sample_data(HG_PC))
+
+# Rename row names
+row.names(shannon.div) <- gsub("X","", row.names(shannon.div))
+row.names(shannon.div) <- gsub("[.]","-", row.names(shannon.div))
+
+# Merge data
+sampleData <- merge(sampledata1, shannon.div, by = 0 , all = TRUE)
+
+# Create Observed Richness Plot
+q1 <- ggboxplot(sampleData, x = "sampleType", y = "Observed",
+                color = "sampleType", palette = "jco", legend = "none") + 
+  stat_compare_means(label.y = 260) +
+  geom_jitter(aes(colour = sampleType), size = 2, alpha = 0.6) +
+  geom_boxplot(aes(fill = sampleType), width=0.7, alpha = 0.5) +
+  theme_bw() +  theme(legend.position="none",axis.title.x=element_blank()) +  
+  scale_fill_manual(values = cols) + 
+  scale_colour_manual( values = cols)
+
+
+
+# Calculate PCoA on Bray distance
+PCoA_bray_HG_PC <- ordinate(physeq = HG_PC, method = "PCoA", distance = "bray")
+
+# Plot PCoA on Bray distance
+PCoA_bray_HG_PC_plot <- plot_ordination(
+  physeq = HG_PC, 
+  ordination = PCoA_bray_HG_PC, 
+  color = "sampleType"
 ) + 
-  geom_point(aes(fill ="samplingTime" ),  size =2) + 
-  geom_point(shape = 1, size = 2,colour = "black") +
-  theme_bw() + ggtitle("PCoA Plot - Bray") + 
-      theme(plot.title = element_text(hjust = 0.5))  + 
- ggtitle("Hindgut: Microbiome") +
-  xlab("PCoA 1 [21.1 %]") + ylab("PCoA 2 [7.7 %]") + 
-  stat_ellipse() + 
-  scale_fill_manual(values =  annotation_colors$samplingTime) + 
-  scale_colour_manual( values = annotation_colors$samplingTime) +
-  guides(color = guide_legend(title = "Time")) 
+  geom_point(shape = 19, alpha=0.7) + 
+  theme_bw() + ggtitle("PCoA Plot - Bray") +
+    theme(plot.title = element_text(hjust = 0.5))  + 
+  xlab("PCoA 1 [46.7 %]") + ylab("PCoA 2 [15.7 %]") + 
+  stat_ellipse() + scale_fill_manual(values = cols) + 
+  scale_colour_manual( values = cols)
 
 # Run adonis test
-sampledf <- data.frame(sample_data(psdata.p))
-bcdist <- phyloseq::distance(psdata.p, method="bray",normalized=TRUE) 
-adonis2(bcdist ~ samplingTime, data = sampledf, permutations = 9999)
+sampledf_PC <- data.frame(sample_data(HG_PC))
+bcdist_PC <- phyloseq::distance(HG_PC, method="bray",normalized=TRUE)
+result <- adonis2(bcdist_PC ~ sampleType, data = sampledf_PC, permutations = 9999)
+PCoA_bray_HG_PC_plot <- PCoA_bray_HG_PC_plot + annotate(
+  "text", x = 0.35, y = 0.3, 
+  label = paste("Adonis R2 =", round(result$R2[1], 3),
+                "\np-value =", result$`Pr(>F)`[1]),
+  col = "black", fontface = "bold")
+
+plot_grid(q1, PCoA_bray_HG_PC_plot, labels = c('A', 'B'), align = 'hv', ncol = 2, rel_widths = c(0.6, 1))
+```
 
 
-set.seed(1)
-plot4 <- plot_ordination(
-  physeq = psdata.p, 
-  ordination = PCoA_bray, 
-  color = "New_Diet"
-) + 
-  geom_point(aes(fill ="New_Diet" ),  size =2) + 
-  geom_point(shape = 1, size = 2,colour = "black") +
-  theme_bw() + ggtitle("PCoA Plot - Bray") + 
-      theme(plot.title = element_text(hjust = 0.5))  + 
- ggtitle("Hindgut: Microbiome") +
-  xlab("PCoA 1 [21.1 %]") + ylab("PCoA 2 [7.7 %]") + 
-  stat_ellipse() + 
-  scale_fill_manual(values =  annotation_colors$New_Diet) + 
-  scale_colour_manual( values = annotation_colors$New_Diet) +
-  guides(color = guide_legend(title = "Diet")) 
 
-# Run adonis test
-sampledf <- data.frame(sample_data(psdata.p))
-adonis2(bcdist ~ New_Diet, data = sampledf, permutations = 9999)
+```{r warning=FALSE, message=FALSE, fig.align='center', echo=FALSE, eval=FALSE}
+library(eulerr)
+library(microbiome)
+library(microbiomeutilities)
+
+sample_data(all.clean)$Group <- paste(sample_data(all.clean)$sampleType,sample_data(all.clean)$New_Diet,sep = "_")
+pseq.rel.f <- format_to_besthit(all.clean)
+
+Group <- unique(as.character(meta(pseq.rel.f)$Group))
+
+list_core <- c() # an empty object to store information
+
+for (n in Group){ # for each variable n in DiseaseState
+    #print(paste0("Identifying Core Taxa for ", n))
+    
+    ps.sub <- subset_samples(pseq.rel.f, Group == n) 
+    
+    core_m <- core_members(ps.sub,  
+                           detection = 0.001,  
+                           prevalence = 0.10)
+    print(paste0("No. of core taxa in ", n, " : ", length(core_m))) # print core taxa identified in each DiseaseState.
+    list_core[[n]] <- core_m # add to a list core taxa for each group.
+    #print(list_core)
+}
 
 
-# plot5 <- plot_grid(plot1, plot2, labels = c('', ''), label_size = 12, ncol = 1, align = "hv")
-# plot6 <- plot_grid(plot3, plot4, labels = c('', ''), label_size = 12, ncol = 1, align = "hv")
-# plot_grid(plot5, plot6, ncol = 2, rel_widths = c(1.5, 1))
+```
+
+```{r warning=FALSE, message=FALSE, results='hide', fig.align='center', eval=FALSE, echo=FALSE}
+plot(venn(list_core))
 ```
 
 ```{r, echo=FALSE }
@@ -1133,12 +1063,14 @@ rabutable <- function(phylo_ob,
 }
 ```
 
-```{r, message=FALSE, warning=FALSE, fig.align='center'}
-psdata1 <- subset_samples(psdata, samplingTime != "T0")
-table_HM <- rabutable(psdata1, predictor= "New_Diet", type = "Genus", facet_wrap ="samplingTime", N_taxa = 20)
 
+```{r, fig.align='center'}
+library(tidyverse) 
+library(pheatmap) 
 
-data = table_HM %>%   
+df1 <- rabutable(phylo_ob = all.clean, predictor= "New_Diet", type = "Genus", facet_wrap   ="sampleType", N_taxa = 20)
+
+data = df1 %>%   
   mutate(ID = paste0(variable, ":", wrap, "_", predictor2)) %>%  
   group_by(ID) %>%   
   summarize(meanvalue = mean(log(value))) %>%   
@@ -1150,9 +1082,7 @@ rabuplot_df_genus <- as.data.frame(data)
 rownames(rabuplot_df_genus) <- data$ID 
 rabuplot_df_genus <- rabuplot_df_genus[,-1] 
 
-
 heatmap_colors <- colorRampPalette(c("#18b29f","#FFFFFF","#ac6721"), interpolate = "spline", space = "rgb")(51)
-
 annotation_col <- 
   colnames(rabuplot_df_genus) %>% 
   as.data.frame() %>% 
@@ -1160,387 +1090,270 @@ annotation_col <-
   tidyr::separate(col = common,  into = c("Time", "Diet"), remove = F, extra = "drop") %>% # If replicates are present, we drop them here
   dplyr::select(common,Time, Diet) %>%  
   tibble::column_to_rownames(var = "common")
+colnames(annotation_col) <- c("Type" , "Diet")
 
-annotation_colors_1 <- list(
-  Time = c(`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
-  Diet = c(`CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
+annotation_col$Diet[1] <- "4%MN3"
+annotation_col$Diet[3] <- "4%MN3"
+annotation_col$Diet[4] <- "CTR"
+
+annotation_col$Type[1] <- "Hindgut"
+annotation_col$Type[2] <- "Hindgut"
+
+annotation_col$Type[3] <- "Pyloric caeca"
+annotation_col$Type[4] <- "Pyloric caeca"
 
 
-row.names(rabuplot_df_genus)[3] <- "BCP group"   
-plot7 <- pheatmap(t(rabuplot_df_genus), 
+
+annotation_colors <- list(
+  Diet = c(`CTR` = "#e41a1cff", `4%MN3` = "#984ea3ff"),
+    Type = c(`Hindgut` = "darkorange", `Pyloric caeca` = "darkblue"))
+
+
+
+row.names(rabuplot_df_genus)[2] <- "BCP group"   
+differential_heatmap_plot <- pheatmap(t(rabuplot_df_genus), 
          annotation_row = annotation_col,
-         annotation_colors = annotation_colors_1,  
-         color = heatmap_colors,
+         annotation_colors = annotation_colors,  
+        color = heatmap_colors,
          scale = "row", 
          cluster_rows = F, 
          cluster_cols = T, 
-         gaps_row = c(4,8),
+         gaps_row = c(2),
          show_colnames = T,
         show_rownames = F)
-
 
 ```
 
 # Transcriptomics
-Import data
 ```{r}
 # Replace this base URL with the raw content URL of your GitHub repository
 base_url <- "https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/"
 
 # Specify the paths to your files on GitHub
-host_gut_rawCounts_url <- paste0(base_url, "Transcriptomics/low_dosage_trial/host_gut_count.txt")
-sample_info_url <- paste0(base_url, "Transcriptomics/low_dosage_trial/sample_info.csv")
+host_gut_rawCounts_url <- paste0(base_url, "Transcriptomics/high_dosage_trial/output.txt")
+sample_info_url <- paste0(base_url, "Transcriptomics/high_dosage_trial/sample_info.txt")
 
 # Read the files
-host_gut_rawCounts_total1 <- read.table(url(host_gut_rawCounts_url))
-sample_info <- read.csv(url(sample_info_url), row.names = 1)
+omics_data_host <- read.table(url(host_gut_rawCounts_url),  header = T, row.names = 1)
+sample_info <- read.table(url(sample_info_url),  header = T, row.names = 1)
 
-omics_data_host <- host_gut_rawCounts_total1
-host_gut_mapping_file <- sample_info
-```
+colnames(omics_data_host) <- sub("\\..*", "", colnames(omics_data_host))
 
-Initial formatting
-Main idea of this chunk of code is make sure we have same number of samples in `countData` and samples in `colData` for `DESeq2`. Also the order of the samples in `colData` need to match the order of the samples in `countData`
-```{r}
-sample_info$ID_New <- paste(sample_info$Time, "_",
-                            sample_info$New_Diet, "_", 
-                            sample_info$Tank_number, "_", "0",
-                            sample_info$Sample_Number, 
-                                      sep = "")
-head_change <- subset(sample_info, select=c("common" ,"ID_New"))
-row.names(sample_info) <- sample_info$ID_New
+r1 <- row.names(sample_info)
+omics_data_host <- omics_data_host[, r1]
+#all(colnames(omics_data_host) == rownames(sample_info))
 
-omics_data_host1 <- omics_data_host[, colnames(omics_data_host) %in% sample_info$ID_New]
-omics_data_host <- omics_data_host1
-# rename colnames of omics_data_host using new ID
-df1 <- subset(sample_info, select= c("common", "ID_New"))
-omics_data_host %>% 
-  rename_with(~deframe(df1)[.x], .cols = df1$ID_New) %>% 
-  select(any_of(df1$ID_New)) -> omics_data_host_new
-omics_data_host <- omics_data_host_new
-reorder_idx <- match(sample_info$ID_New, colnames(omics_data_host))
-omics_data_host <- omics_data_host[ , reorder_idx]
-all(colnames(omics_data_host) == sample_info$ID_New)
-```
+# Hindgut
+sample_info_hindgut <- sample_info[sample_info$sampleType == "hindgut", ]
+matching_cols <- intersect(colnames(omics_data_host), rownames(sample_info_hindgut))
+omics_data_host_gut <- omics_data_host[, matching_cols]
 
-DESeq2 analysis
-```{r}
-df <- round(omics_data_host) %>%
+df <- round(omics_data_host_gut) %>%
   # The next steps require a data frame and round() returns a matrix
   as.data.frame() %>%
   # Only keep rows that have total counts above the cutoff
   dplyr::filter(rowSums(.) >= 0)
 
-#all(colnames(df) == rownames(sample_info))
+all(colnames(df) == rownames(sample_info_hindgut))
 
-dds <- DESeqDataSetFromMatrix(
+dds_gut <- DESeqDataSetFromMatrix(
   countData = df, # Our prepped data frame with counts
-  colData = sample_info, # Data frame with annotation for our samples
-  design = ~1 # Here we are not specifying a model
+  colData = sample_info_hindgut, # Data frame with annotation for our samples
+  design = ~New_Diet # Here we are not specifying a model
 )
-```
 
-```{r, warning=FALSE, error=FALSE, results='hide'}
-dds$group <- factor(paste0(dds$Time, dds$New_Diet))
-design(dds) <- ~ group-1
+# dds_gut$group <- factor(paste0(dds_gut$New_Diet))
+# design(dds_gut) <- ~ group-1
 
-dds_trial_1 <- DESeq(dds, parallel = T)
-resultsNames(dds_trial_1 )
+dds_gut <- DESeq(dds_gut, parallel = T)
+#resultsNames(dds_gut)
+res <- results(dds_gut)
+res <- res[order(res$padj),]
+table(res$padj < 0.05)
+res_tbl <- as_tibble(res, rownames = "ENSEMBL") %>%
+  filter(padj <0.05)%>%
+  arrange(padj)
 
-annot_function <- read_tsv("/Users/shashankgupta/Desktop/ImprovAFish/Salmo_salar-GCA_905237065.2_gene_annotations.tsv")
-annot_function <- annot_function[, c("gene_id", "v2.gene_id.NCBI","v2.gene_name.ensembl", "v2.product")]
-```
-
-```{r}
-vst <- vst(dds_trial_1)
-pcaPlot <- DESeq2::plotPCA(vst, intgroup = c("Time", "New_Diet", "group"), ntop = nrow(dds_trial_1), returnData = TRUE) 
-
+vsdata <- vst(dds_gut)
+pcaPlot <- DESeq2::plotPCA(vsdata, intgroup = c("New_Diet"), ntop = nrow(dds_gut), returnData = TRUE) 
 percentVar <- round(100 * attr(pcaPlot, "percentVar"))
 
-plot8<- ggplot(pcaPlot, aes(PC1, PC2, color=New_Diet)) + 
+plot12<- ggplot(pcaPlot, aes(PC1, PC2, color=New_Diet)) + 
   geom_point(aes(fill ="New_Diet" ),  size =2.5) + 
   geom_point(shape = 1, size = 2.5,colour = "black") +
   theme_bw() + ggtitle("Hindgut: Host transcriptomics") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  xlab("PC 1 [12 %]") + ylab("PC 2 [6 %]") + 
-  stat_ellipse() + scale_fill_manual(values =annotation_colors$New_Diet) + 
-  scale_colour_manual( values = annotation_colors$New_Diet) +
+  xlab("PC 1 [19 %]") + ylab("PC 2 [9 %]") + 
+  stat_ellipse() + 
+  scale_fill_manual(values = c("#984EA3", "#E41A1C")) + 
+  scale_colour_manual( values = c("#984EA3", "#E41A1C"))+
   guides(color = guide_legend(title = "Diet")) 
-
-
-plot8.1<- ggplot(pcaPlot, aes(PC1, PC2, color=Time)) + 
-  geom_point(aes(fill ="Time" ),  size =2.5) + 
-  geom_point(shape = 1, size = 2.5,colour = "black") +
-  theme_bw() + ggtitle("Hindgut: Host transcriptomics") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  xlab("PC 1 [12 %]") + ylab("PC 2 [6 %]") + 
-  stat_ellipse() + scale_fill_manual(values =annotation_colors$samplingTime) + 
-  scale_colour_manual( values = annotation_colors$samplingTime) +
-  guides(color = guide_legend(title = "Life stage")) 
-
-
-# Perform PERMANOVA using adonis2
-dist_matrix <- dist(pcaPlot[, c("PC1", "PC2")])
-permanova_result <- adonis2(dist_matrix ~ Time, data = pcaPlot, permutations = 9999)
-permanova_result
 ```
 
 
+
 # Metatranscriptomics
-Import data and intial preprocessing
-```{r, warning=FALSE}
+```{r}
 # Specify the path to your RDS file on GitHub
-rds_file <- "Metatranscriptomics/low_dosage_trial/dds_metatranscriptomics.rds"
-rds_url <- paste0("https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/", rds_file)
+base_url <- "https://raw.githubusercontent.com/shashank-KU/ImprovaFish-MDF-Effects/main/"
 
-# Read the RDS file
-dds_metatranscriptomics <- readRDS(url(rds_url))
+# Specify the paths to your files on GitHub
+host_gut_rawCounts_url <- paste0(base_url, "Metatranscriptomics/high_dosage_trial/txi.kallisto.tsv")
+sample_info_url <- paste0(base_url, "Metatranscriptomics/high_dosage_trial/sample_info.txt")
+
+# Read the files
+metatranscriptomics_data <- read.table(url(host_gut_rawCounts_url), header = T, row.names = 1, sep = "\t")
+sample_info <- read.table(url(sample_info_url), header = T, row.names = 1, sep = "\t")
 
 
-# Filter out T0 time point
-dds_metatranscriptomics <- dds_metatranscriptomics[ , dds_metatranscriptomics$TimePoint != "T0"]
+count_columns <- grep("counts\\.", names(metatranscriptomics_data), value = TRUE)
+metatranscriptomics_data <- metatranscriptomics_data[count_columns]
 
-# Prepare data for analysis
-dds_metatranscriptomics$New_Diet <- toupper(dds_metatranscriptomics$Treatment)
-dds_metatranscriptomics$Time <- toupper(dds_metatranscriptomics$TimePoint)
-dds_metatranscriptomics$group <- factor(paste0(dds_metatranscriptomics$Time, dds_metatranscriptomics$New_Diet))
-design(dds_metatranscriptomics) <- ~ group-1
+colnames(metatranscriptomics_data) <- sub("counts.", "", colnames(metatranscriptomics_data))
 
-# Calculate gene sums and filter out low-expressed genes
-gene_sums <- rowSums(counts(dds_metatranscriptomics, normalized = FALSE))
-dds_filtered <- dds_metatranscriptomics[gene_sums >= 50,]
+r1 <- row.names(sample_info)
+metatranscriptomics_data <- metatranscriptomics_data[, r1]
+#all(colnames(metatranscriptomics_data) == rownames(sample_info))
 
-# Perform DESeq analysis
-dds_metatranscriptomics <- DESeq(dds_filtered, parallel = TRUE)
+# Hindgut
+df <- round(metatranscriptomics_data) %>%
+  # The next steps require a data frame and round() returns a matrix
+  as.data.frame() %>%
+  # Only keep rows that have total counts above the cutoff
+  dplyr::filter(rowSums(.) >= 50)
 
-# Explore results
-resultsNames(dds_metatranscriptomics)
-res <- results(dds_metatranscriptomics)
+all(colnames(df) == rownames(sample_info))
 
-# Count and print the number of differentially expressed genes with adjusted p-value < 0.05
-cat("Number of differentially expressed microbial genes (padj < 0.05):", sum(res$padj < 0.05), "\n")
+dds_metaT_gut <- DESeqDataSetFromMatrix(
+  countData = df, # Our prepped data frame with counts
+  colData = sample_info, # Data frame with annotation for our samples
+  design = ~New_Diet # Here we are not specifying a model
+)
 
-# Display summary of DESeq results
-summary(res)
-
-# Order results by adjusted p-value
+dds_metaT_gut <- DESeq(dds_metaT_gut, parallel = T)
+#resultsNames(dds_metaT_gut)
+res <- results(dds_metaT_gut)
+table(res$padj < 0.05)
+#head(results(dds_metaT_gut, tidy=TRUE)) #let's look at the results table
+#summary(res) #summary of results
 res <- res[order(res$padj),]
-
-# Filter and arrange results for display
+#head(res)
+#table(res$padj < 0.05)
 res_tbl <- as_tibble(res, rownames = "ENSEMBL") %>%
-  filter(padj < 0.05) %>%
+  filter(padj <0.05)%>%
   arrange(padj)
+```
 
-# Perform variance stabilizing transformation (VST)
-vst_data <- vst(dds_metatranscriptomics)
 
-# Generate PCA plot
-pcaPlot <- DESeq2::plotPCA(vst_data, intgroup = c("Time", "New_Diet", "group"), ntop = nrow(dds_trial_1), returnData = TRUE) 
+```{r}
+vsdata <- vst(dds_metaT_gut)
+#plotPCA(vsdata, intgroup="New_Diet")  + stat_ellipse() + theme_bw()
+pcaPlot <- DESeq2::plotPCA(vsdata, intgroup = c("New_Diet"), ntop = nrow(dds_metaT_gut), returnData = TRUE) 
 
-# Extract percentage of variance explained by PCs
-percentVar <- round(100 * attr(pcaPlot, "percentVar"))
-
-# Create PCA plot using ggplot2
-plot9 <- ggplot(pcaPlot, aes(PC1, PC2, color=New_Diet)) + 
+plot13 <- ggplot(pcaPlot, aes(PC1, PC2, color=New_Diet)) + 
   geom_point(aes(fill ="New_Diet" ),  size =2.5) + 
   geom_point(shape = 1, size = 2.5,colour = "black") +
   theme_bw() + ggtitle("Hindgut: Metatranscriptomics") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  xlab(paste("PC 1 [", percentVar[1], "%]")) + ylab(paste("PC 2 [", percentVar[2], "%]")) + 
-  stat_ellipse() + scale_fill_manual(values = annotation_colors$New_Diet) + 
-  scale_colour_manual( values = annotation_colors$New_Diet) +
+  xlab("PC 1 [11 %]") + ylab("PC 2 [4 %]") + 
+  stat_ellipse()  + 
+  scale_fill_manual(values = c("#984EA3", "#E41A1C")) + 
+  scale_colour_manual( values = c("#984EA3", "#E41A1C"))+
   guides(color = guide_legend(title = "Diet")) 
+```
+
+
+```{r, eval=FALSE, echo=FALSE}
+library("readxl")
+mtdata <- read_xlsx("/Users/shashankgupta/Desktop/ImprovAFish/ImprovAFish_4_percentage/MetaTranscriptomics/MetaTNMBUTrialAnalysis.Expression.Annotated.xlsx")
+mtdata <- as.data.frame(mtdata)
+rownames(mtdata) <- mtdata$GeneID
+mtdata <- subset(mtdata, grepl("tryptophan", kegg_hit, ignore.case = TRUE))
+mtdata$GeneID <- NULL
+sample_info <- read.table("/Users/shashankgupta/Desktop/ImprovAFish/ImprovAFish_4_percentage/MetaTranscriptomics/sample_info.txt", header = T, row.names = 1, sep = "\t")
+
+table(colnames(mtdata) %in% rownames(sample_info))
+filtered_mtdata <- mtdata[, colnames(mtdata) %in% rownames(sample_info)]
+table(colnames(sample_info) %in% rownames(filtered_mtdata))
+table(colnames(filtered_mtdata) %in% rownames(sample_info))
+
+sample_info<- sample_info[- grep("IFC_D3_tk11_HGmM07", sample_info$Original_name),]
+
+ordered_filtered_mtdata <- filtered_mtdata[, rownames(sample_info)]
+all(colnames(ordered_filtered_mtdata) == rownames(sample_info))
+
+
+
+# Load the ggplot2 library
+library(ggplot2)
+
+# Merge sample_info and ordered_filtered_mtdata based on sample names
+merged_data <- merge(sample_info, as.data.frame(t(ordered_filtered_mtdata)), by = "row.names")
+
+# Rename the merged_data column names for clarity
+colnames(merged_data)[1] <- "SampleID"
+
+# Convert the New_Diet variable to a factor for better plotting
+merged_data$New_Diet <- as.factor(merged_data$New_Diet)
+
+# Gather the data for ggplot
+gathered_data <- tidyr::gather(merged_data, key = "OTU", value = "Abundance", -SampleID, -sampleType, -Original_name, -New_Diet)
+
+# Create a boxplot using ggplot2
+ggplot(gathered_data, aes(x = New_Diet, y = log(Abundance), fill = New_Diet)) +
+  geom_boxplot() +
+  labs(x = "New Diet", y = "Abundance") + theme_bw() 
 
 ```
 
-```{r}
-contrasts <- c("T1MC1", "T1MC2", "T1MN3")
+```{r, eval=FALSE, echo=FALSE, results='hide'}
+mtdata_raw <- read_xlsx("/Users/shashankgupta/Desktop/ImprovAFish/MetaTranscriptomics/MetaTDataDirdalTrialAnalysisAnnotated.xlsx")
+mtdata <- as.data.frame(mtdata_raw)
 
-for (contrast in contrasts) {
-  contrast_group <- paste0("group", contrast)
-  contrast_levels <- list(contrast_group, "groupT1CTR")
-  
-  res <- results(dds_metatranscriptomics, contrast = contrast_levels)
-  
-  # Extract the number of differentially expressed genes with adjusted p-value < 0.05
-  num_de_genes <- sum(res$padj < 0.05, na.rm = TRUE)
-  
-  # Print informative message
-  cat("Number of differentially expressed microbial genes at time point 1 (T1)", "for CTR vs", contrast_group, "is", num_de_genes, "\n")
-}
+rownames(mtdata) <- mtdata$GeneID
+mtdata <- subset(mtdata, grepl("lactobacillus", GeneID, ignore.case = TRUE))
+mtdata$GeneID <- NULL
 
+selected_columns <- mtdata[, grep("T2|T3|cazy|kegg", colnames(mtdata))]
 
+colnames_mtdata <- colnames(mtdata)
+sample_info <- data.frame(SampleID = colnames_mtdata)
+sample_info <- sample_info[c(1:151),]
+sample_info_df <- data.frame(SampleID = sample_info)
 
-contrasts <- c("T2MC1", "T2MC2", "T2MN3")
+# Split the SampleID column into Time, New_Diet, Tank, and Tissue
+sample_info_df <- sample_info_df %>%
+  separate(SampleID, into = c("Time", "New_Diet", "Tank", "Tissue"), sep = "_")
+row.names(sample_info_df) <- sample_info
+sample_info_df$Tank <- NULL
+sample_info_df$Tissue <- NULL
 
-for (contrast in contrasts) {
-  contrast_group <- paste0("group", contrast)
-  contrast_levels <- list(contrast_group, "groupT2CTR")
-  
-  res <- results(dds_metatranscriptomics, contrast = contrast_levels)
-  
-  # Extract the number of differentially expressed genes with adjusted p-value < 0.05
-  num_de_genes <- sum(res$padj < 0.05, na.rm = TRUE)
-  
-  # Print informative message
-  cat("Number of differentially expressed microbial genes at time point 2 (T2)", contrast, "for CTR vs", contrast_group, "is", num_de_genes, "\n")
-}
+table(colnames(mtdata) %in% rownames(sample_info_df))
+filtered_mtdata <- mtdata[, colnames(mtdata) %in% rownames(sample_info_df)]
+table(colnames(sample_info_df) %in% rownames(filtered_mtdata))
+table(colnames(filtered_mtdata) %in% rownames(sample_info_df))
+rows_to_remove <- colnames(sample_info_df) %in% rownames(filtered_mtdata)
+sample_info_df <- sample_info_df[!rows_to_remove, ]
 
-
-contrasts <- c("T3MC1", "T3MC2", "T3MN3")
-
-for (contrast in contrasts) {
-  contrast_group <- paste0("group", contrast)
-  contrast_levels <- list(contrast_group, "groupT3CTR")
-  
-  res <- results(dds_metatranscriptomics, contrast = contrast_levels)
-  
-  # Extract the number of differentially expressed genes with adjusted p-value < 0.05
-  num_de_genes <- sum(res$padj < 0.05, na.rm = TRUE)
-  
-  # Print informative message
-  cat("Number of differentially expressed microbial genes at time point 3 (T3)", contrast, "for CTR vs", contrast_group, "is", num_de_genes, "\n")
-}
-
+merged_data <- cbind(sample_info_df, as.data.frame(t(filtered_mtdata)))
+merged_data$Tank <- NULL
+library(tidyr)
+merged_data_long <- gather(merged_data, Key, Value, -Time, -New_Diet)
+merged_data_long$Value <- as.numeric(merged_data_long$Value)
+# Create a boxplot using ggplot2
+ggplot(merged_data_long, aes(x = New_Diet, y = log10(Value), fill = New_Diet)) +
+  geom_boxplot() +
+  labs(x = "New Diet", y = "Abundance") + theme_bw() + facet_wrap("Time")
 
 ```
-<!-- ## Metabolomics -->
-```{r, message=FALSE, warning=FALSE, results='hide', echo=FALSE, eval=FALSE}
-annotation_colors <- list(
-  samplingTime = c(`T0`="gray" ,`T1` = "#FF7F00", `T2` = "#FFD92F", `T3`="#F781BF"),
-  New_Diet = c(`ext-ctrl`="#FDC086", `CTR`="#e41a1cff", `MC1`="#377EB8", `MC2`="#4DAF4A", `MN3`="#984EA3"))
-library("MetaboAnalystR")
-getwd()
-mSet<-InitDataObjects("conc", "mf", FALSE)
-mSet<-SetDesignType(mSet, "multi")
-mSet<-Read.TextDataTs(mSet, "/Users/shashankgupta/Desktop/ImprovAFish/Metabolomics/Metabolomics/Final_Paper_Renaming/RP_HILIC_merged.csv", "rowmf")
-mSet<-ReadMetaData(mSet, "/Users/shashankgupta/Desktop/ImprovAFish/Metabolomics/Metabolomics/Final_Paper_Renaming/RP_HILIC_merged_METADATA.csv")
-mSet<-SanityCheckData(mSet)
-mSet<-ReplaceMin(mSet);
-mSet<-SanityCheckMeta(mSet, 1)
-mSet<-SetDataTypeOfMeta(mSet);
-mSet<-SanityCheckData(mSet)
-mSet<-PreparePrenormData(mSet)
-mSet<-Normalization(mSet, "MedianNorm", "LogNorm", "AutoNorm", ratio=FALSE, ratioNum=20)
-mSet <- PCA.Anal(mSet)
-metabolites_pca <- data.frame(mSet$analSet$pca$x)
-metabolites_pca <- metabolites_pca[, c(1:2)]
-metabolites_pca <- metabolites_pca %>%
-  rownames_to_column(var = "Sample") %>%
-  mutate(
-    Time = ifelse(grepl("T2|T3", Sample), substr(Sample, 1, 2), NA),
-    New_Diet = ifelse(
-      grepl("CTR|MC1|MC2|MN3", Sample),
-      gsub(".*(CTR|MC1|MC2|MN3).*", "\\1", Sample),
-      NA
-    )
-  ) %>%
-  select(Sample, New_Diet, Time, everything()) %>%
-  column_to_rownames(var = "Sample")
-
-plot10<- ggplot(metabolites_pca, aes(PC1, PC2, color=New_Diet)) + 
-  geom_point(aes(fill ="New_Diet" ),  size =2.5) + 
-  geom_point(shape = 1, size = 2.5,colour = "black") +
-  theme_bw() + ggtitle("Hindgut: Metabolomics") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  xlab("PC 1 [33.6 %]") + ylab("PC 2 [11.3 %]") + 
-  stat_ellipse() + scale_fill_manual(values =annotation_colors$New_Diet) + 
-  scale_colour_manual( values = annotation_colors$New_Diet) +
-  guides(color = guide_legend(title = "Diet")) 
-
-
-
-plot10.1 <- ggplot(metabolites_pca, aes(PC1, PC2, color=Time)) + 
-  geom_point(aes(fill ="Time" ),  size =2.5) + 
-  geom_point(shape = 1, size = 2.5,colour = "black") +
-  theme_bw() +# ggtitle("Hindgut: Metabolomics") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  xlab("PC 1 [33.6 %]") + ylab("PC 2 [11.3 %]") + 
-  stat_ellipse() + scale_fill_manual(values =annotation_colors$samplingTime) + 
-  scale_colour_manual( values = annotation_colors$samplingTime) +
-  guides(color = guide_legend(title = "Life stage")) 
-
-
-plot_grid(plot10, plot10.1, labels = "AUTO")
-
-
-
-# Perform PERMANOVA using adonis2
-dist_matrix <- dist(metabolites_pca[, c("PC1", "PC2")])
-permanova_result <- adonis2(dist_matrix ~ Time, data = metabolites_pca, permutations = 9999)
-print(permanova_result)
-```
-
-```{r, eval=FALSE, echo=FALSE, results='hide', echo=FALSE, eval=FALSE}
-
-metabolites <- data.frame(mSet$dataSet$norm)
-metabolites<-t(metabolites)
-raw <- as.matrix(metabolites)
-OTU = otu_table(raw, taxa_are_rows = TRUE)
-dat <- read.csv("/Users/shashankgupta/Desktop/ImprovAFish/Metabolomics/Metabolomics/Final_Paper_Renaming/RP_HILIC_merged_METADATA.csv")
-row.names(dat) <- dat$Sample
-dat$New_Diet <- toupper(dat$Diet)
-
-# Merge into one complete phyloseq object
-ps <- merge_phyloseq(otu_table(OTU), sample_data(dat))
-tt <- as.data.frame(row.names(metabolites))
-row.names(tt) <- tt$`row.names(metabolites)`
-colnames(tt)[1] <- "Kingdom"
-tax_table(ps) <- as.matrix(tt)
-set.seed(12345)
-
-ps_MC1<-subset_samples(ps, Time %in% c("T2") & New_Diet %in% c("CTR", "MC1"))
-ps_MC1 <- prune_taxa(taxa_sums(ps_MC1) > 0, ps_MC1)
-lef_out<-microbiomeMarker::run_lefse(ps_MC1, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.05,
-                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
-
-plot_ef_bar(lef_out)
-
-ps_MC2<-subset_samples(ps, Time %in% c("T2") & New_Diet %in% c("CTR", "MC2"))
-ps_MC2 <- prune_taxa(taxa_sums(ps_MC2) > 0, ps_MC2)
-lef_out<-run_lefse(ps_MC2, group = "New_Diet", norm = "CPM", 
-                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
-
-plot_ef_bar(lef_out)
-
-ps_MN3<-subset_samples(ps, Time %in% c("T2") & New_Diet %in% c("CTR", "MN3"))
-ps_MN3 <- prune_taxa(taxa_sums(ps_MN3) > 0, ps_MN3)
-lef_out<-run_lefse(ps_MN3, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.01,
-                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
-
-plot_ef_bar(lef_out)
-
-
-ps_MC1<-subset_samples(ps, Time %in% c("T3") & New_Diet %in% c("CTR", "MC1"))
-ps_MC1 <- prune_taxa(taxa_sums(ps_MC1) > 0, ps_MC1)
-lef_out<-run_lefse(ps_MC1, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.05,
-                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
-
-plot_ef_bar(lef_out)
-
-ps_MC2<-subset_samples(ps, Time %in% c("T3") & New_Diet %in% c("CTR", "MC2"))
-ps_MC2 <- prune_taxa(taxa_sums(ps_MC2) > 0, ps_MC2)
-lef_out<-run_lefse(ps_MC2, group = "New_Diet", norm = "CPM", 
-                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
-
-plot_ef_bar(lef_out)
-
-ps_MN3<-subset_samples(ps, Time %in% c("T3") & New_Diet %in% c("CTR", "MN3"))
-ps_MN3 <- prune_taxa(taxa_sums(ps_MN3) > 0, ps_MN3)
-lef_out<-run_lefse(ps_MN3, group = "New_Diet", norm = "CPM", wilcoxon_cutoff = 0.01,
-                   kw_cutoff = 0.05, lda_cutoff = 2, taxa_rank = "none")
-
-plot_ef_bar(lef_out)
-
-```
-
 
 
 ```{r, fig.align='center', fig.height=12, fig.width=12}
-plot_left <- plot_grid(plot2, plot1, plot7$gtable, align = "hv", ncol = 1, rel_heights =  c(.6,.6,1.5), labels = c('B', 'C', 'G'))
+left_pannel <- plot_grid(up_row, NULL, differential_heatmap_plot$gtable, align = 'hv', ncol = 1, rel_heights =  c(.6,0.1, 1), labels = c('', "G"))
 
-plot_right <- plot_grid(plot3, plot4, plot8, plot9, align = "hv", ncol = 1, rel_widths = c(1,1,1,1,1), labels = c('D', 'E', 'F', 'H' ))
+right_pannel <- plot_grid(PCoA_bray_HG_plot, PCoA_bray_PC_plot, plot12, plot13,  align = "hv", ncol = 1, rel_widths = c(1,1,1,1), labels = c('D','E','F','H'))
 
-plot_grid(plot_left, plot_right, align = "hv", rel_widths = c(2,1))
+plot_grid(left_pannel, right_pannel, align = "hv", rel_widths = c(1.2,1))
+
 ```
 
